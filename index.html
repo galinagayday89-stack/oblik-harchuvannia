@@ -145,6 +145,10 @@ table.wk th:nth-child(2),table.wk td.name,table.wk tr.addrow td:last-child{text-
 table.wk td.name .pn{justify-content:flex-start}
 table.wk td.name{min-width:200px}
 table.wk tr.addrow select{color:var(--muted)}
+.groups .grow{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.gchip{display:flex;flex-direction:column;gap:4px;background:var(--accent-soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.gchip b{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.gchip span{font-size:16px;font-weight:600;display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
 tr.flash td{background:var(--hl)}
 footer{margin-top:30px;font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
@@ -174,7 +178,11 @@ footer{margin-top:30px;font-size:12px;color:var(--muted)}
 <div class="toast" id="toast"></div>
 
 <script>
-const G=[{c:'1–5 класи',a:'1–5 кл.'},{c:'6–9 класи',a:'6–9 кл.'},{c:'10–11 класи',a:'10–11 кл.'}];
+const G=[{},{},{}];
+function bounds(){let b=null;try{b=S.meta&&S.meta.groupB}catch(e){}b=b||[5,9];return [b[0],b[1]]}
+function updG(){const [b1,b2]=bounds(),r=(a,z)=>a===z?`${a}`:`${a}–${z}`,lab=[[1,b1],[b1+1,b2],[b2+1,11]];
+  lab.forEach(([a,z],i)=>{G[i].c=`${r(a,z)} ${a===z?'клас':'класи'}`;G[i].a=`${r(a,z)} кл.`})}
+updG();
 const MONTHS=['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
 const MONTHS_LOC=['січні','лютому','березні','квітні','травні','червні','липні','серпні','вересні','жовтні','листопаді','грудні'];
 const MONTHS_GEN=['січень','лютий','березень','квітень','травень','червень','липень','серпень','вересень','жовтень','листопад','грудень'];
@@ -192,7 +200,7 @@ const dmy=s=>s.split('-').reverse().join('.');
 const WD=['Понеділок','Вівторок','Середа','Четвер','Пʼятниця'];
 const DEF_CATS=['Діти-сироти та позбавлені батьківського піклування','Діти з малозабезпечених сімей','Діти з особливими освітніми потребами','Діти внутрішньо переміщених осіб','Діти захисників України'];
 const B=()=>S.meta.benef||(S.meta.benef={cats:[...DEF_CATS],kids:[]});
-const grpOf=cls=>{const n=parseInt(cls,10);return !n||n<=5?0:n<=9?1:2};
+const grpOf=cls=>{const n=parseInt(cls,10),[b1,b2]=bounds();return !n||n<=b1?0:n<=b2?1:2};
 const monthLabel=k=>{const[y,m]=k.split('-').map(Number);return `${MONTHS[m-1]} ${y}`};
 
 /* ---------- приклад ---------- */
@@ -362,6 +370,7 @@ function monthTotals(k=S.cur){
 
 /* ---------- рендер ---------- */
 function render(){
+  updG();
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===S.tab));
   renderBanner();
   const f={att:rAtt,journal:rJournal,stock:rStock,summary:rSummary,menu:rMenu,ben:rBen,week:rWeek}[S.tab]||rJournal;
@@ -563,6 +572,16 @@ function rSummary(){
 function pcsSum(d,i){return d.items.reduce((s,it)=>s+(it.p&&isPcs(it.p)?num(it.g[i]):0),0)}
 function dishCost(d,i){return d.items.reduce((s,it)=>{if(!it.p)return s;return s+num(it.g[i])*priceOf(it.p)/(isPcs(it.p)||isGr(it.p)?1:1000)},0)}
 function rawLabel(d,i){const g=sumOut(d,i),pc=pcsSum(d,i);return [g?`${fmtq(g,1)} г`:'',pc?`${fmtq(pc,2)} шт`:''].filter(Boolean).join(' + ')||'—'}
+function groupsCard(){
+  const [b1,b2]=bounds();
+  const opt=(from,to,sel)=>{let o='';for(let i=from;i<=to;i++)o+=`<option value="${i}" ${i===sel?'selected':''}>${i}</option>`;return o};
+  return `<div class="card groups"><div class="row between" style="align-items:flex-start"><div><h2 style="margin:0 0 4px">Групи класів</h2><p class="hint" style="margin:0">Норми харчування задаються окремо для кожної групи. Змініть межі, якщо у вашому закладі інший поділ.</p></div></div>
+    <div class="grow">
+      <div class="gchip"><b>Група 1</b><span>1 – <select data-f="gb" data-i="0" aria-label="Кінець першої групи">${opt(1,9,b1)}</select> клас</span></div>
+      <div class="gchip"><b>Група 2</b><span>${b1+1} – <select data-f="gb" data-i="1" aria-label="Кінець другої групи">${opt(b1+1,10,b2)}</select> клас</span></div>
+      <div class="gchip"><b>Група 3</b><span>${b2+1} – 11 клас</span></div>
+    </div></div>`;
+}
 function rMenu(){
   const dl=`<datalist id="prods">${allProducts().map(p=>`<option value="${esc(p)}">`).join('')}</datalist>`;
   const col=S.collapsed||(S.collapsed=new Set());
@@ -587,7 +606,7 @@ function rMenu(){
     <button class="btn sm" style="margin-top:8px" data-act="addItem" data-d="${d.id}">+ Інгредієнт</button>`:''}
   </article>`}).join('');
   const any=S.meta.dishes.length;
-  return `${dl}<div class="row between"><div><h2>Меню</h2><p class="hint">Заповнюється один раз. Норма вказується в грамах сировини на одну дитину, для яєць — у штуках. Сума та вартість порції рахуються самі.</p></div>
+  return `${dl}${groupsCard()}<div class="row between"><div><h2>Меню</h2><p class="hint">Заповнюється один раз. Норма вказується в грамах сировини на одну дитину, для яєць — у штуках. Сума та вартість порції рахуються самі.</p></div>
     <div class="row">${any?`<button class="btn" data-act="collapseAll">${col.size===any?'Розгорнути всі':'Згорнути всі'}</button>`:''}<button class="btn pri" data-act="addDishDef">+ Нова страва</button></div></div>
     ${cards||'<div class="card empty">Додайте першу страву та її інгредієнти.</div>'}`;
 }
@@ -633,7 +652,7 @@ function rAtt(){
   <details class="card" id="clsDetails" ${(S.clsOpen||!cls.length)?'open':''}><summary>Класи (${cls.length})</summary>
     <div class="tw"><table><thead><tr><th>Клас</th><th>Учнів за списком</th><th>Група класів</th><th></th></tr></thead><tbody>${clsRows}</tbody></table></div>
     <form class="row" id="addClassForm" style="margin-top:10px"><input id="newClass" placeholder="напр. 3-Б" style="width:110px" aria-label="Новий клас"><input id="newClassTotal" type="number" min="0" placeholder="учнів" aria-label="Учнів за списком"><button class="btn" type="submit">+ Додати клас</button><button class="btn ghost" type="button" data-act="addClasses111">Додати 1–11 класи</button></form>
-    <p class="hint">Групу сайт визначає за номером класу: 1–5, 6–9, 10–11.</p></details>`;
+    <p class="hint">Групу сайт визначає за номером класу (межі груп змінюються у вкладці «Меню»): ${G.map(g=>g.a).join(', ')}.</p></details>`;
 }
 
 /* ---------- пільговики ---------- */
@@ -816,6 +835,7 @@ $main.addEventListener('change',async e=>{
   else if(f==='wkAdd'){if(!el.value)return;const date=el.dataset.date,k=date.slice(0,7),m=month(k);let d=m.days.find(x=>x.date===date);
     if(!d){const prev=[...m.days].filter(x=>x.date<date).sort((a,b)=>a.date.localeCompare(b.date)).pop();d={id:uid(),date,dishes:[],kids:prev?[...prev.kids]:[0,0,0]};m.days.push(d)}
     if(!d.dishes.includes(el.value))d.dishes.push(el.value);ensureMonthListed(k);touch('m-'+k)}
+  else if(f==='gb'){const b=[...bounds()],i=+el.dataset.i,v=+el.value;b[i]=v;if(b[1]<=b[0])b[1]=Math.min(10,b[0]+1);if(b[0]>=b[1])b[0]=b[1]-1;S.meta.groupB=b;touch('meta');updG();toast(`Групи: ${G.map(g=>g.c).join(' · ')}`)}
   else if(f==='repShow'){const h=S.meta.repHide||(S.meta.repHide={});h[el.dataset.k]=!el.checked;touch('meta')}
   else if(f==='attDay'){S.attDay=el.value}
   else if(f==='att'){const m=month();m.att=m.att||{};const d=m.att[S.attDay]||(m.att[S.attDay]={});const v=d[el.dataset.c]||(d[el.dataset.c]={});
