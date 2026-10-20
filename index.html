@@ -147,6 +147,9 @@ table.wk td.name{min-width:200px}
 table.wk tr.addrow select{color:var(--muted)}
 .groups .grow{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
 .gchip{display:flex;flex-direction:column;gap:4px;background:var(--accent-soft);border-radius:10px;padding:10px 14px;min-width:150px}
+.gchip.off{background:var(--soft);color:var(--muted)}
+.gchip.off span{font-size:14px;font-weight:500}
+.gchip small{font-size:11px;max-width:200px}
 .gchip b{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .gchip span{font-size:16px;font-weight:600;display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
 tr.flash td{background:var(--hl)}
@@ -180,8 +183,10 @@ footer{margin-top:30px;font-size:12px;color:var(--muted)}
 <script>
 const G=[{},{},{}];
 function bounds(){let b=null;try{b=S.meta&&S.meta.groupB}catch(e){}b=b||[5,9];return [b[0],b[1]]}
+const G_ALL=[{},{},{}];
 function updG(){const [b1,b2]=bounds(),r=(a,z)=>a===z?`${a}`:`${a}–${z}`,lab=[[1,b1],[b1+1,b2],[b2+1,11]];
-  lab.forEach(([a,z],i)=>{G[i].c=`${r(a,z)} ${a===z?'клас':'класи'}`;G[i].a=`${r(a,z)} кл.`})}
+  lab.forEach(([a,z],i)=>{G_ALL[i].c=`${r(a,z)} ${a===z?'клас':'класи'}`;G_ALL[i].a=`${r(a,z)} кл.`});
+  G.length=0;G_ALL.slice(0,b2>=11?2:3).forEach(g=>G.push(g))}
 updG();
 const MONTHS=['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
 const MONTHS_LOC=['січні','лютому','березні','квітні','травні','червні','липні','серпні','вересні','жовтні','листопаді','грудні'];
@@ -332,7 +337,7 @@ function allProducts(){
 }
 const CL=()=>S.meta.classes||(S.meta.classes=[]);
 function attOf(day,k=S.cur){const a=(month(k).att||{})[day.id];return a&&Object.keys(a).length?a:null}
-function K(day,k=S.cur){const a=attOf(day,k);if(!a)return day.kids;const r=[0,0,0];
+function K(day,k=S.cur){const a=attOf(day,k);if(!a)return G.length<3?[num(day.kids[0]),num(day.kids[1])+num(day.kids[2]),0]:day.kids;const r=[0,0,0];
   CL().forEach(c=>{const v=a[c.id];if(v)r[grpOf(c.name)]+=num(v.ate)});return r}
 function dayCalc(day,k=S.cur){const kids=K(day,k);
   // рядки: продукт → норми на 1 дитину по групах, всього, вартість
@@ -392,7 +397,7 @@ function rJournal(){
   const days=[...m.days].sort((a,b)=>a.date.localeCompare(b.date)).map(day=>{
     const c=dayCalc(day);
     const chips=day.dishes.map(id=>{const d=dishById(id);return d?`<span class="chip">${esc(d.name)}<button data-act="rmDish" data-day="${day.id}" data-d="${id}" aria-label="Прибрати">×</button></span>`:''}).join('');
-    const rows=c.rows.map(r=>`<tr><td class="name">${esc(r.p)}</td>${r.g.map((g,i)=>`<td>${fmtq(g)}</td><td>${fmt(r.cost[i])}</td>`).join('')}<td class="calc">${fmtq(toStock(r.p,r.total),3)} ${su(r.p)}</td><td class="calc">${fmt(r.sum)}</td></tr>`).join('');
+    const rows=c.rows.map(r=>`<tr><td class="name">${esc(r.p)}</td>${r.g.slice(0,G.length).map((g,i)=>`<td>${fmtq(g)}</td><td>${fmt(r.cost[i])}</td>`).join('')}<td class="calc">${fmtq(toStock(r.p,r.total),3)} ${su(r.p)}</td><td class="calc">${fmt(r.sum)}</td></tr>`).join('');
     const dt=new Date(day.date+'T12:00');
     return `<article class="card">
       <div class="dayhead">
@@ -401,7 +406,7 @@ function rJournal(){
         <div class="row"><span class="daycost">${fmt(c.cost)} грн</span>${confirmBtn('day'+day.id,'Видалити день','rmDay" data-day="'+day.id)}</div>
       </div>
       <div class="kids">${attOf(day)?G.map((g,i)=>`<label>${g.c}<b class="kfix">${K(day)[i]}</b></label>`).join('')+`<span class="hint" style="align-self:end">Харчувалися — з вкладки «Відвідування». <button class="btn sm" data-act="goAtt" data-day="${day.id}">Відкрити</button></span>`
-  :G.map((g,i)=>`<label>${g.c}<input type="number" min="0" step="1" value="${day.kids[i]||''}" placeholder="0" data-f="kids" data-i="${i}" data-day="${day.id}"></label>`).join('')}</div>
+  :G.map((g,i)=>`<label>${g.c}<input type="number" min="0" step="1" value="${K(day)[i]||''}" placeholder="0" data-f="kids" data-i="${i}" data-day="${day.id}"></label>`).join('')}</div>
       <div class="chips">${chips}<select data-f="addDish" data-day="${day.id}" aria-label="Додати страву"><option value="">+ Додати страву</option>${dishOpts}</select></div>
       ${c.rows.length?`<div class="pc">Вартість на 1 дитину: ${G.map((g,i)=>`<span>${g.c}: <b>${fmt(c.perChild[i])} грн</b></span>`).join('')}</div>
       <details><summary>Продукти за день (${c.rows.length})</summary><div class="tw"><table>
@@ -578,8 +583,8 @@ function groupsCard(){
   return `<div class="card groups"><div class="row between" style="align-items:flex-start"><div><h2 style="margin:0 0 4px">Групи класів</h2><p class="hint" style="margin:0">Норми харчування задаються окремо для кожної групи. Змініть межі, якщо у вашому закладі інший поділ.</p></div></div>
     <div class="grow">
       <div class="gchip"><b>Група 1</b><span>1 – <select data-f="gb" data-i="0" aria-label="Кінець першої групи">${opt(1,9,b1)}</select> клас</span></div>
-      <div class="gchip"><b>Група 2</b><span>${b1+1} – <select data-f="gb" data-i="1" aria-label="Кінець другої групи">${opt(b1+1,10,b2)}</select> клас</span></div>
-      <div class="gchip"><b>Група 3</b><span>${b2+1} – 11 клас</span></div>
+      <div class="gchip"><b>Група 2</b><span>${b1+1} – <select data-f="gb" data-i="1" aria-label="Кінець другої групи">${opt(b1+1,11,b2)}</select> клас</span></div>
+      ${b2>=11?`<div class="gchip off"><b>Група 3</b><span>не використовується</span><small>Щоб увімкнути, у групі 2 виберіть клас менший за 11</small></div>`:`<div class="gchip"><b>Група 3</b><span>${b2+1} – 11 клас</span></div>`}
     </div></div>`;
 }
 function rMenu(){
@@ -596,7 +601,7 @@ function rMenu(){
     ${open?`<div class="tw"><table class="mt"><thead><tr><th class="n">№</th><th>Інгредієнт (продукт)</th><th>Од.</th>${G.map(g=>`<th>${g.c}</th>`).join('')}<th></th></tr></thead><tbody>
     ${d.items.map((it,j)=>`<tr><td class="n">${j+1}</td><td><input class="pname" list="prods" value="${esc(it.p)}" data-f="ip" data-d="${d.id}" data-j="${j}" placeholder="напр. молоко"></td>
       <td>${it.p?(isPcs(it.p)?'шт':'г'):''}</td>
-      ${it.g.map((v,i)=>`<td><input type="number" step="any" min="0" value="${v||''}" placeholder="0" data-f="ig" data-d="${d.id}" data-j="${j}" data-i="${i}"></td>`).join('')}
+      ${it.g.slice(0,G.length).map((v,i)=>`<td><input type="number" step="any" min="0" value="${v||''}" placeholder="0" data-f="ig" data-d="${d.id}" data-j="${j}" data-i="${i}"></td>`).join('')}
       <td><button class="btn sm ghost" data-act="rmItem" data-d="${d.id}" data-j="${j}" aria-label="Прибрати інгредієнт">×</button></td></tr>`).join('')}
     </tbody><tfoot>
     <tr class="sumrow"><td></td><td>Разом сировини на 1 дитину</td><td></td>${G.map((g,i)=>`<td>${rawLabel(d,i)}</td>`).join('')}<td></td></tr>
@@ -712,7 +717,7 @@ function rWeek(){
   const rows=wd.map(x=>{const n=x.dishes.length+1;
     const dayCell=`<td class="day" rowspan="${n}">${x.wd}<br><span class="hint">${dmy(x.date)}</span></td>`;
     const dr=x.dishes.map((d,j)=>`<tr>${j?'':dayCell}<td class="name"><div class="pn"><span>${esc(d.name)}</span><button class="btn sm ghost danger" data-act="wkRm" data-date="${x.date}" data-d="${d.id}" aria-label="Прибрати ${esc(d.name)}" title="Прибрати з цього дня">×</button></div></td>${G.map((g,i)=>`<td>${dishOut(d,i)}</td>`).join('')}</tr>`).join('');
-    const add=`<tr class="addrow">${x.dishes.length?'':dayCell}<td colspan="4"><select data-f="wkAdd" data-date="${x.date}" aria-label="Додати страву на ${x.wd}"><option value="">+ Додати страву</option>${opts}</select></td></tr>`;
+    const add=`<tr class="addrow">${x.dishes.length?'':dayCell}<td colspan="${G.length+1}"><select data-f="wkAdd" data-date="${x.date}" aria-label="Додати страву на ${x.wd}"><option value="">+ Додати страву</option>${opts}</select></td></tr>`;
     return dr+add}).join('');
   return `<div class="row between">${monthNav()}<div class="row"><select data-f="week" aria-label="Тиждень">${ws.map((x,i)=>`<option value="${i}" ${i===S.week?'selected':''}>${dmy(x.mon).slice(0,5)} – ${dmy(x.fri)}</option>`).join('')}</select><button class="btn pri" data-act="weekHtml">Завантажити для друку</button></div></div>
   <div class="card" style="margin-top:14px"><div class="fields">
@@ -725,7 +730,7 @@ function rWeek(){
 }
 function weekHtmlFile(){
   const {w}=curWeek(),wd=weekData(w),e=esc;
-  const rows=wd.map(x=>x.dishes.length?x.dishes.map((d,j)=>`<tr>${j?'':`<td rowspan="${x.dishes.length}"><b>${x.wd}</b><br>${dmy(x.date)}</td>`}<td class="l">${e(d.name)}</td>${G.map((g,i)=>`<td>${dishOut(d,i)}</td>`).join('')}</tr>`).join(''):`<tr><td><b>${x.wd}</b><br>${dmy(x.date)}</td><td class="l">—</td><td></td><td></td><td></td></tr>`).join('');
+  const rows=wd.map(x=>x.dishes.length?x.dishes.map((d,j)=>`<tr>${j?'':`<td rowspan="${x.dishes.length}"><b>${x.wd}</b><br>${dmy(x.date)}</td>`}<td class="l">${e(d.name)}</td>${G.map((g,i)=>`<td>${dishOut(d,i)}</td>`).join('')}</tr>`).join(''):`<tr><td><b>${x.wd}</b><br>${dmy(x.date)}</td><td class="l">—</td>${G.map(()=>'<td></td>').join('')}</tr>`).join('');
   return `<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>Меню на тиждень ${dmy(w.mon)} – ${dmy(w.fri)}</title>
 <style>@page{size:A4 landscape;margin:14mm}body{font-family:"Times New Roman",serif;font-size:14px;color:#000;margin:0 auto;max-width:1000px;padding:16px}
 .top{display:flex;justify-content:space-between;gap:20px}.ap{text-align:left;line-height:1.6}h1{text-align:center;font-size:20px;margin:18px 0 4px}p.c{text-align:center;margin:0 0 12px}
@@ -733,7 +738,7 @@ table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:6p
 .sign{margin-top:28px;display:flex;justify-content:space-between;gap:20px}</style></head><body>
 <div class="top"><div>${e(S.meta.school||'')}</div><div class="ap">ЗАТВЕРДЖУЮ<br>Директор ____________ ${e(S.meta.director||'')}<br>«___» ____________ ${w.mon.slice(0,4)} р.</div></div>
 <h1>Меню на тиждень</h1><p class="c">з ${dmy(w.mon)} по ${dmy(w.fri)}</p>
-<table><thead><tr><th rowspan="2">День</th><th rowspan="2">Назва страви</th><th colspan="3">Вихід страви на 1 дитину</th></tr><tr>${G.map(g=>`<th>${g.c}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>
+<table><thead><tr><th rowspan="2">День</th><th rowspan="2">Назва страви</th><th colspan="${G.length}">Вихід страви на 1 дитину</th></tr><tr>${G.map(g=>`<th>${g.c}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>
 <div class="sign"><div>Відповідальний за харчування ____________ ${e(S.meta.resp||'')}</div><div>Медична сестра ____________</div></div>
 </body></html>`;
 }
@@ -820,7 +825,7 @@ $main.addEventListener('change',async e=>{
     return}
   if(!f)return;
   if(f==='date'){dayOf(el.dataset.day).date=el.value;touch(mk)}
-  else if(f==='kids'){dayOf(el.dataset.day).kids[+el.dataset.i]=Math.max(0,Math.round(num(el.value)));touch(mk)}
+  else if(f==='kids'){const dd=dayOf(el.dataset.day),ii=+el.dataset.i;dd.kids[ii]=Math.max(0,Math.round(num(el.value)));if(G.length<3&&ii===1)dd.kids[2]=0;touch(mk)}
   else if(f==='addDish'){if(el.value){const d=dayOf(el.dataset.day);if(!d.dishes.includes(el.value))d.dishes.push(el.value);touch(mk)}}
   else if(['start','bought','price','written'].includes(f)){
     const m=month(),p=el.dataset.p;m.stock[p]=m.stock[p]||{};
@@ -835,7 +840,7 @@ $main.addEventListener('change',async e=>{
   else if(f==='wkAdd'){if(!el.value)return;const date=el.dataset.date,k=date.slice(0,7),m=month(k);let d=m.days.find(x=>x.date===date);
     if(!d){const prev=[...m.days].filter(x=>x.date<date).sort((a,b)=>a.date.localeCompare(b.date)).pop();d={id:uid(),date,dishes:[],kids:prev?[...prev.kids]:[0,0,0]};m.days.push(d)}
     if(!d.dishes.includes(el.value))d.dishes.push(el.value);ensureMonthListed(k);touch('m-'+k)}
-  else if(f==='gb'){const b=[...bounds()],i=+el.dataset.i,v=+el.value;b[i]=v;if(b[1]<=b[0])b[1]=Math.min(10,b[0]+1);if(b[0]>=b[1])b[0]=b[1]-1;S.meta.groupB=b;touch('meta');updG();toast(`Групи: ${G.map(g=>g.c).join(' · ')}`)}
+  else if(f==='gb'){const b=[...bounds()],i=+el.dataset.i,v=+el.value;b[i]=v;if(b[1]<=b[0])b[1]=Math.min(11,b[0]+1);if(b[0]>=b[1])b[0]=b[1]-1;S.meta.groupB=b;touch('meta');updG();toast(`Групи: ${G.map(g=>g.c).join(' · ')}`)}
   else if(f==='repShow'){const h=S.meta.repHide||(S.meta.repHide={});h[el.dataset.k]=!el.checked;touch('meta')}
   else if(f==='attDay'){S.attDay=el.value}
   else if(f==='att'){const m=month();m.att=m.att||{};const d=m.att[S.attDay]||(m.att[S.attDay]={});const v=d[el.dataset.c]||(d[el.dataset.c]={});
@@ -872,8 +877,8 @@ function reportRows(){
   out.push(['Дата','Страва','Інгредієнт',...G.flatMap(g=>[`${g.a}, г/шт`,`${g.a}, грн`]),...G.map(g=>`Дітей ${g.c}`),'Використано','Сума, грн']);
   [...m.days].sort((a,b)=>a.date.localeCompare(b.date)).forEach(d=>{
     const c=dayCalc(d);const names=d.dishes.map(id=>dishById(id)?.name).filter(Boolean).join(', ');
-    c.rows.forEach((r,i)=>out.push([i?'':d.date.split('-').reverse().join('.'),i?'':names,r.p,...r.g.flatMap((g,j)=>[g,+r.cost[j].toFixed(2)]),...(i?['','','']:K(d).map(num)),+toStock(r.p,r.total).toFixed(3),+r.sum.toFixed(2)]));
-    out.push(['','','Сума за день',...G.flatMap((g,j)=>['',+c.perChild[j].toFixed(2)]),'','','','',+c.cost.toFixed(2)]);
+    c.rows.forEach((r,i)=>out.push([i?'':d.date.split('-').reverse().join('.'),i?'':names,r.p,...r.g.slice(0,G.length).flatMap((g,j)=>[g,+r.cost[j].toFixed(2)]),...(i?G.map(()=>''):K(d).slice(0,G.length).map(num)),+toStock(r.p,r.total).toFixed(3),+r.sum.toFixed(2)]));
+    out.push(['','','Сума за день',...G.flatMap((g,j)=>['',+c.perChild[j].toFixed(2)]),...G.map(()=>''),'',+c.cost.toFixed(2)]);
   });
   return out}
 function stockRows(){
@@ -882,7 +887,7 @@ function stockRows(){
     out.push([p,su(p),+st.toFixed(3),b,pr,+(b*pr).toFixed(2),+used.toFixed(3),w,+(st+b-used-w).toFixed(3)])});
   return out}
 function menuRows(){const out=[['Меню'],['Страва','Інгредієнт','Од.',...G.map(g=>g.a)]];
-  S.meta.dishes.forEach(d=>d.items.forEach((it,i)=>out.push([i?'':d.name,it.p,isPcs(it.p)?'шт':'г',...it.g])));return out}
+  S.meta.dishes.forEach(d=>d.items.forEach((it,i)=>out.push([i?'':d.name,it.p,isPcs(it.p)?'шт':'г',...it.g.slice(0,G.length)])));return out}
 function attRows(){
   const m=month(),cls=[...CL()].sort((a,b)=>parseInt(a.name)-parseInt(b.name)||a.name.localeCompare(b.name,'uk'));
   const out=[[`Відвідування та харчування за ${MONTHS_GEN[+S.cur.split('-')[1]-1]} ${S.cur.split('-')[0]}`],['Дата','Клас','За списком','Присутні','Харчувалися','З них пільговиків']];
