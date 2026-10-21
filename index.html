@@ -117,6 +117,7 @@ h2{font-family:var(--f-display);font-weight:500;font-size:18px;margin:6px 0 10px
 .dact{display:flex;gap:6px;align-items:center;margin-left:auto;flex-wrap:wrap}
 .mt th:nth-child(2),.mt td:nth-child(2){text-align:left}
 @media (max-width:600px){.mt td input.pname{min-width:110px}}
+.mt input.norm{width:84px;text-align:right;font-variant-numeric:tabular-nums}
 .mt td.n,.mt th.n{width:36px;text-align:center;color:var(--muted)}
 .mt tbody tr:nth-child(even) td{background:var(--soft)}
 .mt tbody tr:hover td{background:var(--hl)}
@@ -152,6 +153,23 @@ table.wk tr.addrow select{color:var(--muted)}
 .gchip small{font-size:11px;max-width:200px}
 .gchip b{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .gchip span{font-size:16px;font-weight:600;display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+.meth{margin:6px 0 2px;gap:8px}
+table.stock th.g{text-align:center;border-left:1px solid var(--line)}
+table.stock td.sum{color:var(--muted)}
+table.stock td.calc.sum{color:var(--ink)}
+table.stock td input[type=number]{width:70px}
+tr.opened td{background:var(--accent-soft)}
+tr.buyrow>td{background:var(--soft);white-space:normal;text-align:left;padding:12px}
+.buybox{display:grid;grid-template-columns:minmax(220px,1fr) minmax(0,2fr);gap:18px;position:sticky;left:12px;max-width:min(1100px,calc(100vw - 64px))}
+@media (max-width:760px){.buybox{grid-template-columns:1fr}}
+.bwrap{overflow-x:auto;max-width:100%}
+.buybox>div{display:grid;gap:8px;align-content:start;min-width:0}
+.bstart label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+table.buys{width:auto;background:var(--paper);border:1px solid var(--line);border-radius:6px}
+table.buys td,table.buys th{text-align:left}
+table.buys input[type=number]{width:90px}
+table.stock .buyform input[type=number]{width:110px}
+table.stock table.buys input[type=number]{width:90px}
 tr.flash td{background:var(--hl)}
 footer{margin-top:30px;font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
@@ -234,7 +252,7 @@ function exampleData(){
 
 /* ---------- стан ---------- */
 let S={meta:null,months:{},cur:curKey,tab:'journal',example:true,confirm:null};
-(()=>{const e=exampleData();S.meta=e.meta;S.months=e.months})();
+(()=>{const e=exampleData();S.meta=e.meta;S.months=e.months;Object.values(S.months).forEach(migrateStock)})();
 try{const t=localStorage.getItem('oh_tab');if(t)S.tab=t}catch(e){}
 
 /* ---------- збереження ---------- */
@@ -251,7 +269,7 @@ const store={kind:'none',db:null,uid:null,
 let dirty=new Set(),saveT=null;
 function touch(...keys){
   if(S.example){S.example=false;dirty.add('meta');Object.keys(S.months).forEach(k=>dirty.add('m-'+k));renderBanner()}
-  keys.forEach(k=>dirty.add(k));
+  COST={};keys.forEach(k=>dirty.add(k));
   clearTimeout(saveT);saveT=setTimeout(flush,700);setStatus('Зберігаю…',false);
 }
 async function flush(){
@@ -260,7 +278,7 @@ async function flush(){
   try{
     for(const k of keys){
       if(k==='meta')await store.set('meta',S.meta);
-      else{const mk=k.slice(2);const m=S.months[mk];if(m){m.end=endStock(mk);await store.set(k,m)}}
+      else{const mk=k.slice(2);const m=S.months[mk];if(m){COST={};const c=costing(mk);m.end={};m.endLots={};Object.entries(c.prod).forEach(([p,r])=>{m.end[p]=+r.endQ.toFixed(4);if(r.endLots.length)m.endLots[p]=r.endLots});await store.set(k,m)}}
     }
     setStatus(store.kind==='cloud'?'Збережено у вашому акаунті':'Збережено в цьому браузері',true);
   }catch(e){keys.forEach(k=>dirty.add(k));setStatus('Не вдалося зберегти. Спробую ще раз',false);clearTimeout(saveT);saveT=setTimeout(flush,4000)}
@@ -311,8 +329,9 @@ function normalizeAll(){
   S.meta.products=np;
   S.meta.dishes.forEach(d=>d.items.forEach(it=>{const n=normName(it.p);if(n!==it.p){it.p=n;changed=true}}));
   Object.entries(S.months).forEach(([mk,m])=>{
+    if(m.stock&&Object.values(m.stock).some(st=>!Array.isArray(st.buys))){migrateStock(m);changed=true}
     if(m.stock){const ns={};Object.entries(m.stock).forEach(([k,v])=>{const n=normName(k);if(n!==k)changed=true;if(!n)return;
-      if(!ns[n])ns[n]={...v};else{const a=ns[n];['bought','written'].forEach(x=>a[x]=num(a[x])+num(v[x]));if(!num(a.price))a.price=v.price;if(v.start!==undefined&&v.start!=='')a.start=num(a.start)+num(v.start)}});m.stock=ns}
+      if(!ns[n])ns[n]={...v,buys:[...(v.buys||[])]};else{const a=ns[n];a.written=num(a.written)+num(v.written);a.buys=[...(a.buys||[]),...(v.buys||[])];if(v.start!==undefined&&v.start!=='')a.start=num(a.start)+num(v.start)}});m.stock=ns}
     if(m.end){const ne={};Object.entries(m.end).forEach(([k,v])=>{const n=normName(k);ne[n]=(ne[n]||0)+num(v)});m.end=ne}
     if(changed)dirty.add('m-'+mk)});
   if(changed){dirty.add('meta');clearTimeout(saveT);saveT=setTimeout(flush,700)}
@@ -328,7 +347,42 @@ const isGr=p=>unitOf(p)==='гр'; // облік у грамах
 const su=p=>isPcs(p)?'шт':isGr(p)?'г':'кг';
 const UNITS=[['г','кг'],['гр','г'],['шт','шт']];
 const toStock=(p,q)=>isPcs(p)||isGr(p)?q:q/1000; // норма (г) → одиниця складу
-function priceOf(p,k=S.cur){const s=month(k).stock[p];const v=s&&num(s.price);return v||num(S.meta.products[p]?.price)}
+let COST={};
+function migrateStock(m){Object.values((m&&m.stock)||{}).forEach(st=>{if(!Array.isArray(st.buys)){st.buys=num(st.bought)?[{id:uid(),q:num(st.bought),pr:num(st.price),date:''}]:[];delete st.bought;delete st.price}})}
+function buysOf(p,k=S.cur){const st=month(k).stock[p];if(!st)return [];if(Array.isArray(st.buys))return st.buys;return num(st.bought)?[{id:'legacy',q:num(st.bought),pr:num(st.price),date:''}]:[]}
+function priceOf(p,k=S.cur){const b=buysOf(p,k).filter(x=>num(x.pr));if(b.length)return num(b[b.length-1].pr);const c=COST[k]&&COST[k].prod[p];if(c&&c.lastPr)return c.lastPr;return num(S.meta.products[p]?.price)}
+function dayUse(day,k=S.cur){const kids=K(day,k),u={};(day.dishes||[]).forEach(id=>{const d=dishById(id);if(!d)return;d.items.forEach(it=>{if(!it.p)return;const q=it.g.reduce((s,v,i)=>s+num(v)*num(kids[i]),0);u[it.p]=(u[it.p]||0)+toStock(it.p,q)})});return u}
+/* Облік партій: залишок + надходження → витрата за ФІФО (спершу старіші партії) або за середньою ціною */
+function costing(k=S.cur){
+  if(COST[k])return COST[k];
+  const res={unit:{},prod:{}};COST[k]=res;
+  const m=month(k),avg=S.meta.costMethod==='avg';
+  const days=[...m.days].sort((a,b)=>a.date.localeCompare(b.date)),uses=days.map(d=>[d.id,dayUse(d,k)]);
+  const pk=shiftKey(k,-1),pm=S.months[pk];
+  let prev=null;if(pm&&((pm.days&&pm.days.length)||Object.keys(pm.stock||{}).length))prev=costing(pk).prod;
+  const prevLots=p=>{if(prev)return (prev[p]&&prev[p].endLots)||[];if(pm&&pm.endLots&&pm.endLots[p])return pm.endLots[p];if(pm&&pm.end&&num(pm.end[p])>0)return [{q:num(pm.end[p]),pr:num(S.meta.products[p]?.price)}];return []};
+  const ps=new Set(Object.keys(m.stock||{}));uses.forEach(([,u])=>Object.keys(u).forEach(p=>ps.add(p)));
+  if(prev)Object.entries(prev).forEach(([p,v])=>{if(Math.abs(v.endQ)>1e-9)ps.add(p)});else if(pm&&pm.endLots)Object.keys(pm.endLots).forEach(p=>ps.add(p));
+  const ref=p=>{const b=buysOf(p,k).filter(x=>num(x.pr));return b.length?num(b[b.length-1].pr):num(S.meta.products[p]?.price)};
+  ps.forEach(p=>{
+    const st=(m.stock||{})[p]||{},manual=st.start!==undefined&&st.start!=='';
+    const open=manual?(num(st.start)?[{q:num(st.start),pr:num(st.startPr)||ref(p)}]:[]):prevLots(p).map(x=>({q:num(x.q),pr:num(x.pr)}));
+    const buys=buysOf(p,k).map((b,i)=>({q:num(b.q),pr:num(b.pr)||ref(p),date:b.date||'',i})).filter(b=>b.q>0).sort((a,b)=>a.date.localeCompare(b.date)||a.i-b.i);
+    const r={startQ:0,startS:0,inQ:0,inS:0,usedQ:0,usedS:0,wrQ:0,wrS:0,short:0,manual,buys:buys.length};
+    open.forEach(x=>{r.startQ+=x.q;r.startS+=x.q*x.pr});buys.forEach(x=>{r.inQ+=x.q;r.inS+=x.q*x.pr});
+    let queue=[...open,...buys].map(x=>({q:x.q,pr:x.pr}));
+    let lastPr=queue.length?queue[queue.length-1].pr:ref(p);
+    if(avg){const Q=r.startQ+r.inQ,SS=r.startS+r.inS;lastPr=Q>0?SS/Q:ref(p);queue=Q>0?[{q:Q,pr:lastPr}]:[]}
+    const take=q=>{let cost=0,need=q;while(need>1e-9&&queue.length){const l=queue[0],t=Math.min(l.q,need);cost+=t*l.pr;l.q-=t;need-=t;if(l.q<=1e-9)queue.shift()}if(need>1e-9){cost+=need*lastPr;r.short+=need}return cost};
+    uses.forEach(([id,u])=>{const q=u[p];if(!q)return;const c=take(q);r.usedQ+=q;r.usedS+=c;(res.unit[id]||(res.unit[id]={}))[p]=c/q});
+    const w=num(st.written);if(w>0){r.wrQ=w;r.wrS=take(w)}
+    r.endLots=queue.filter(x=>x.q>1e-9).map(x=>({q:+x.q.toFixed(6),pr:x.pr}));
+    r.endQ=r.startQ+r.inQ-r.usedQ-r.wrQ;r.endS=r.startS+r.inS-r.usedS-r.wrS;r.lastPr=lastPr;
+    res.prod[p]=r;
+  });
+  return res;
+}
+const priceAt=(p,k,dayId)=>{const u=costing(k).unit[dayId];return u&&u[p]!==undefined?u[p]:priceOf(p,k)};
 function allProducts(){
   const set=new Set(Object.keys(S.meta.products));
   S.meta.dishes.forEach(d=>d.items.forEach(i=>i.p&&set.add(i.p)));
@@ -349,7 +403,7 @@ function dayCalc(day,k=S.cur){const kids=K(day,k);
     })});
   let cost=0;
   Object.values(rows).forEach(r=>{
-    const pr=priceOf(r.p,k),div=isPcs(r.p)||isGr(r.p)?1:1000;
+    const pr=priceAt(r.p,k,day.id),div=isPcs(r.p)||isGr(r.p)?1:1000;
     r.cost=r.g.map(v=>v*pr/div);
     r.total=r.g.reduce((s,v,i)=>s+v*num(kids[i]),0);
     r.sum=r.cost.reduce((s,v,i)=>s+v*num(kids[i]),0);
@@ -358,15 +412,8 @@ function dayCalc(day,k=S.cur){const kids=K(day,k);
   return {rows:Object.values(rows),perChild,cost};
 }
 function usedMap(k=S.cur){const u={};month(k).days.forEach(d=>dayCalc(d,k).rows.forEach(r=>u[r.p]=(u[r.p]||0)+toStock(r.p,r.total)));return u}
-function startOf(p,k=S.cur){
-  const s=month(k).stock[p];if(s&&s.start!==undefined&&s.start!=='')return num(s.start);
-  const prev=S.months[shiftKey(k,-1)];return prev&&prev.end?num(prev.end[p]):0}
-function endStock(k=S.cur){
-  const u=usedMap(k),m=month(k),out={};
-  const ps=new Set([...Object.keys(u),...Object.keys(m.stock)]);
-  const prev=S.months[shiftKey(k,-1)];if(prev&&prev.end)Object.keys(prev.end).forEach(p=>ps.add(p));
-  ps.forEach(p=>{const s=m.stock[p]||{};out[p]=+(startOf(p,k)+num(s.bought)-(u[p]||0)-num(s.written)).toFixed(4)});
-  return out}
+function startOf(p,k=S.cur){const r=costing(k).prod[p];return r?r.startQ:0}
+function endStock(k=S.cur){const out={};Object.entries(costing(k).prod).forEach(([p,r])=>out[p]=+r.endQ.toFixed(4));return out}
 function monthTotals(k=S.cur){
   const m=month(k);let cost=0;const kd=[0,0,0],gc=[0,0,0];
   m.days.forEach(d=>{const c=dayCalc(d,k);cost+=c.cost;K(d,k).forEach((n,i)=>{kd[i]+=num(n);gc[i]+=c.perChild[i]*num(n)})});
@@ -375,7 +422,7 @@ function monthTotals(k=S.cur){
 
 /* ---------- рендер ---------- */
 function render(){
-  updG();
+  updG();COST={};
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===S.tab));
   renderBanner();
   const f={att:rAtt,journal:rJournal,stock:rStock,summary:rSummary,menu:rMenu,ben:rBen,week:rWeek}[S.tab]||rJournal;
@@ -436,37 +483,60 @@ function usedInfo(){
   return `<div class="infobox"><p><b>Чому «Використано» не змінюється?</b> ${msg}</p>${steps}<button class="btn pri sm" data-act="goJournal">Перейти до журналу</button></div>`;
 }
 function rStock(){
-  const u=usedMap(),m=month(),ps=allProducts();
-  let sumBought=0,sumUsed=0;
+  const m=month(),ps=allProducts(),C=costing().prod,Z={startQ:0,startS:0,inQ:0,inS:0,usedQ:0,usedS:0,wrQ:0,wrS:0,endQ:0,endS:0,lastPr:0};
+  const T={startS:0,inS:0,usedS:0,wrS:0,endS:0};const ncol=11;
   const rows=ps.map(p=>{
-    const s=m.stock[p]||{},pr=priceOf(p),st=startOf(p),b=num(s.bought),w=num(s.written),used=u[p]||0,end=st+b-used-w;
-    sumBought+=b*num(s.price||pr);sumUsed+=used*pr;
-    const un=su(p);
-    const startSet=s.start!==undefined&&s.start!=='';
+    const r=C[p]||Z,s=m.stock[p]||{},un=su(p);Object.keys(T).forEach(x=>T[x]+=r[x]||0);
     const inMenu=S.meta.dishes.filter(d=>d.items.some(i=>i.p===p)).length;
     const del=S.confirm==='p:'+p?`<span class="confirm">${inMenu?`Є в ${inMenu} стр. меню, звідти теж зникне. `:''}Видалити? <button class="btn sm danger" data-act="delP" data-p="${esc(p)}">Так</button><button class="btn sm ghost" data-act="cancel">Ні</button></span>`
       :`<button class="btn sm ghost danger" data-act="ask" data-k="p:${esc(p)}" aria-label="Видалити продукт ${esc(p)}" title="Видалити продукт">×</button>`;
     const badge=!inMenu?`<span class="badge" title="Продукт не входить у жодну страву меню, тому «Використано» для нього не рахується">не в меню</span>`:'';
-    return `<tr class="${S.flash===p?'flash':''}"><td class="name"><div class="pn"><span>${esc(p)} ${badge}</span>${del}</div></td>
+    const open=S.openBuys===p,nb=buysOf(p).length,end=r.endQ;
+    let html=`<tr class="${S.flash===p?'flash':''} ${open?'opened':''}"><td class="name"><div class="pn"><span>${esc(p)} ${badge}</span>${del}</div></td>
       <td><select data-f="unit" data-p="${esc(p)}" aria-label="Одиниця">${UNITS.map(([v,l])=>`<option value="${v}" ${unitOf(p)===v?'selected':''}>${l}</option>`).join('')}</select></td>
-      <td><input type="number" step="any" min="0" value="${startSet?s.start:''}" placeholder="${fmtq(st)}" data-f="start" data-p="${esc(p)}" title="Порожньо — береться залишок минулого місяця"></td>
-      <td><input type="number" step="any" min="0" value="${s.bought||''}" placeholder="0" data-f="bought" data-p="${esc(p)}"></td>
-      <td><input type="number" step="any" min="0" value="${s.price||''}" placeholder="${pr?fmtq(pr,2):'0'}" data-f="price" data-p="${esc(p)}"></td>
-      <td class="calc">${fmt(b*(num(s.price)||pr))}</td>
-      <td class="calc">${fmtq(used)} ${un}</td>
-      <td><input type="number" step="any" min="0" value="${s.written||''}" placeholder="0" data-f="written" data-p="${esc(p)}"></td>
-      <td class="calc ${end<-1e-9?'neg':''}">${fmtq(end)} ${un}</td></tr>`}).join('');
+      <td>${fmtq(r.startQ)}${r.manual?' <span class="hint" title="Вказано вручну">✎</span>':''}</td><td class="sum">${fmt(r.startS)}</td>
+      <td>${fmtq(r.inQ)}</td><td class="sum">${fmt(r.inS)}</td>
+      <td class="calc">${fmtq(r.usedQ)}</td><td class="calc sum">${fmt(r.usedS)}</td>
+      <td><input type="number" step="any" min="0" value="${s.written||''}" placeholder="0" data-f="written" data-p="${esc(p)}" aria-label="Списано"></td><td class="sum">${fmt(r.wrS)}</td>
+      <td class="calc ${end<-1e-9?'neg':''}">${fmtq(end)} ${un}</td><td class="calc sum ${end<-1e-9?'neg':''}">${fmt(r.endS)}</td>
+      <td><button class="btn sm ${open?'pri':''}" data-act="buys" data-p="${esc(p)}" aria-expanded="${open}">${open?'Згорнути':`Прихід${nb?` (${nb})`:''}`}</button></td></tr>`;
+    if(open){
+      const startSet=s.start!==undefined&&s.start!=='';
+      const lots=(r.endLots||[]).map(x=>`${fmtq(x.q)} ${un} × ${fmt(x.pr)}`).join('; ');
+      html+=`<tr class="buyrow"><td colspan="${ncol+2}"><div class="buybox">
+        <div class="bstart"><b>Залишок на початок місяця</b>
+          <div class="row"><label>Кількість, ${un}<input type="number" step="any" min="0" value="${startSet?s.start:''}" placeholder="${fmtq(r.startQ)}" data-f="start" data-p="${esc(p)}"></label>
+          <label>Ціна, грн за ${un}<input type="number" step="any" min="0" value="${s.startPr||''}" placeholder="${r.startQ?fmtq(r.startS/r.startQ,2):'0'}" data-f="startPr" data-p="${esc(p)}"></label></div>
+          <p class="hint">Порожньо — береться залишок минулого місяця (з його цінами). Вписуйте лише для першого місяця роботи.</p></div>
+        <div class="bbuys"><b>Надходження (прихід) за місяць</b>
+          ${nb?`<div class="bwrap"><table class="buys"><thead><tr><th>Дата</th><th>Кількість, ${un}</th><th>Ціна, грн за ${un}</th><th>Сума, грн</th><th></th></tr></thead><tbody>
+          ${buysOf(p).map(b=>`<tr><td><input type="date" value="${b.date||''}" data-f="bdate" data-p="${esc(p)}" data-b="${b.id}" aria-label="Дата надходження"></td>
+            <td><input type="number" step="any" min="0" value="${b.q||''}" data-f="bq" data-p="${esc(p)}" data-b="${b.id}" aria-label="Кількість"></td>
+            <td><input type="number" step="any" min="0" value="${b.pr||''}" data-f="bpr" data-p="${esc(p)}" data-b="${b.id}" aria-label="Ціна"></td>
+            <td>${fmt(num(b.q)*num(b.pr))}</td><td><button class="btn sm ghost danger" data-act="rmBuy" data-p="${esc(p)}" data-b="${b.id}" aria-label="Видалити надходження">×</button></td></tr>`).join('')}
+          </tbody></table></div>`:'<p class="hint">Ще немає надходжень у цьому місяці.</p>'}
+          <form class="row buyform" data-p="${esc(p)}"><input type="date" name="d" aria-label="Дата"><input type="number" step="any" min="0" name="q" placeholder="кількість" aria-label="Кількість"><input type="number" step="any" min="0" name="pr" placeholder="ціна" aria-label="Ціна"><button class="btn pri sm" type="submit">+ Додати надходження</button></form>
+          ${lots?`<p class="hint">Залишок на кінець місяця по партіях: ${lots}</p>`:''}</div>
+      </div></td></tr>`;
+    }
+    return html}).join('');
+  const meth=S.meta.costMethod==='avg'?'avg':'fifo';
   return `<div class="row between">${monthNav()}<div class="row"><button class="btn" data-act="xlsx">Завантажити Excel</button></div></div>
-    <h2 style="margin-top:16px">Розхід продуктів за ${MONTHS_GEN[+S.cur.split('-')[1]-1]}</h2>
+    <h2 style="margin-top:16px">Рух продуктів за ${MONTHS_GEN[+S.cur.split('-')[1]-1]}</h2>
     <form class="row" id="addProdForm" style="margin:10px 0">
       <input id="newProd" placeholder="Назва продукту, напр. гречка" autocomplete="off" style="flex:1;min-width:180px;max-width:320px" aria-label="Назва нового продукту">
       <select id="newUnit" aria-label="Одиниця"><option value="г">кг</option><option value="гр">г</option><option value="шт">шт</option></select>
       <button class="btn pri" type="submit">+ Додати продукт</button></form>
     ${usedInfo()}
-    <p class="hint">Вносьте закупівлю і ціну. «Використано» рахується з журналу, залишок переходить на наступний місяць сам. Червоним позначено нестачу.</p>
-    ${ps.length?`<div class="tw"><table>
-      <thead><tr><th>Продукт</th><th>Од.</th><th>Залишок на початок</th><th>Закуплено</th><th>Ціна, грн за од.</th><th>Сума закупівлі, грн</th><th>Використано</th><th>Списано</th><th>Залишок</th></tr></thead>
-      <tbody>${rows}<tr class="tot"><td>Разом</td><td></td><td></td><td></td><td></td><td>${fmt(sumBought)}</td><td>${fmt(sumUsed)} грн</td><td></td><td></td></tr></tbody></table></div>`
+    <div class="row meth"><label for="costMethod"><b>Ціна витрати:</b></label><select id="costMethod" data-f="costMethod">
+      <option value="fifo" ${meth==='fifo'?'selected':''}>ФІФО — спершу списуються старіші партії</option>
+      <option value="avg" ${meth==='avg'?'selected':''}>За середньозваженою ціною</option></select></div>
+    <p class="hint">Кнопка «Прихід» — додати надходження з різними цінами (наприклад, залишок по 150 грн і нова закупівля по 192 грн). Сайт сам рахує суму витрати і залишку. Залишок разом із цінами партій переходить на наступний місяць.</p>
+    ${ps.length?`<div class="tw"><table class="stock">
+      <thead><tr><th rowspan="2">Продукт</th><th rowspan="2">Од.</th><th colspan="2" class="g">Залишок на початок</th><th colspan="2" class="g">Надійшло</th><th colspan="2" class="g">Використано</th><th colspan="2" class="g">Списано</th><th colspan="2" class="g">Залишок на кінець</th><th rowspan="2"></th></tr>
+      <tr><th>к-сть</th><th>сума, грн</th><th>к-сть</th><th>сума, грн</th><th>к-сть</th><th>сума, грн</th><th>к-сть</th><th>сума, грн</th><th>к-сть</th><th>сума, грн</th></tr></thead>
+      <tbody>${rows}<tr class="tot"><td>Разом, грн</td><td></td><td></td><td>${fmt(T.startS)}</td><td></td><td>${fmt(T.inS)}</td><td></td><td>${fmt(T.usedS)}</td><td></td><td>${fmt(T.wrS)}</td><td></td><td>${fmt(T.endS)}</td><td></td></tr></tbody></table></div>
+      <p class="hint">Перевірка: ${fmt(T.startS)} + ${fmt(T.inS)} − ${fmt(T.usedS)} − ${fmt(T.wrS)} = <b>${fmt(T.startS+T.inS-T.usedS-T.wrS)}</b> грн (залишок на кінець).</p>`
       :`<div class="card empty">Продукти з’являться тут, щойно ви додасте страви в «Меню».</div>`}
     `;
 }
@@ -484,6 +554,7 @@ const REP_CSS=`.rep{background:#fff;color:#000;font-family:"Times New Roman",Tim
 .rep th{background:#eee;font-weight:700;font-size:13px}
 .rep td.l{text-align:left}
 .rep tr.t td{font-weight:700;background:#f4f4f4}
+.rep table.mv th,.rep table.mv td{font-size:11px;padding:3px 3px}
 .rep .kv td{border:0;text-align:left;padding:2px 0}
 .rep .kv td.v{text-align:right;font-weight:700;width:180px}
 .rep .signs{margin-top:28px;display:grid;grid-template-columns:1fr 150px;gap:16px;align-items:end}
@@ -523,13 +594,16 @@ function reportDoc(){
       ${cats.map(([c,v])=>`<tr><td class="l">${e(c)}</td><td>${v.kids}</td><td>${v.days}</td><td>${fmt(v.sum)}</td></tr>`).join('')}
       <tr class="t"><td class="l">Разом</td><td>${tt.k}</td><td>${tt.d}</td><td>${fmt(tt.s)}</td></tr></tbody></table>`;
   }
-  const ps=allProducts().filter(p=>u[p]||num((m.stock[p]||{}).bought)||startOf(p));
-  if(ps.length){let sb=0,su_=0;
-    const rows=ps.map((p,i)=>{const st=m.stock[p]||{},pr=num(st.price)||priceOf(p),s0=startOf(p),bo=num(st.bought),wr=num(st.written),us=u[p]||0;sb+=bo*pr;su_+=us*pr;
-      return `<tr><td>${i+1}</td><td class="l">${e(p)}</td><td>${su(p)}</td><td>${fmtq(s0)}</td><td>${fmtq(bo)}</td><td>${fmtq(us)}</td><td>${fmtq(wr)}</td><td>${fmtq(s0+bo-us-wr)}</td><td>${fmt(pr)}</td><td>${fmt(us*pr)}</td></tr>`}).join('');
-    h+=sec('Рух продуктів харчування')+`<table><thead><tr><th>№</th><th>Найменування</th><th>Од.</th><th>Залишок на початок</th><th>Надійшло</th><th>Використано</th><th>Списано</th><th>Залишок на кінець</th><th>Ціна, грн</th><th>Сума використаного, грн</th></tr></thead><tbody>${rows}
-      <tr class="t"><td></td><td class="l">Разом</td><td colspan="7">надійшло на суму ${fmt(sb)} грн</td><td>${fmt(su_)}</td></tr></tbody></table>`;
+  const CP=costing().prod,ps=allProducts().filter(p=>{const r=CP[p];return r&&(r.startQ||r.inQ||r.usedQ||r.wrQ||r.endQ)});
+  if(ps.length){const T={startS:0,inS:0,usedS:0,wrS:0,endS:0};
+    const rows=ps.map((p,i)=>{const r=CP[p];Object.keys(T).forEach(x=>T[x]+=r[x]);
+      return `<tr><td>${i+1}</td><td class="l">${e(p)}</td><td>${su(p)}</td><td>${fmtq(r.startQ)}</td><td>${fmt(r.startS)}</td><td>${fmtq(r.inQ)}</td><td>${fmt(r.inS)}</td><td>${fmtq(r.usedQ)}</td><td>${fmt(r.usedS)}</td><td>${fmtq(r.wrQ)}</td><td>${fmt(r.wrS)}</td><td>${fmtq(r.endQ)}</td><td>${fmt(r.endS)}</td></tr>`}).join('');
+    h+=sec('Рух продуктів харчування')+`<table class="mv"><thead><tr><th rowspan="2">№</th><th rowspan="2">Найменування</th><th rowspan="2">Од.</th><th colspan="2">Залишок на початок</th><th colspan="2">Надійшло</th><th colspan="2">Використано</th><th colspan="2">Списано</th><th colspan="2">Залишок на кінець</th></tr>
+      <tr><th>к-сть</th><th>сума, грн</th><th>к-сть</th><th>сума, грн</th><th>к-сть</th><th>сума, грн</th><th>к-сть</th><th>сума, грн</th><th>к-сть</th><th>сума, грн</th></tr></thead><tbody>${rows}
+      <tr class="t"><td></td><td class="l">Разом</td><td></td><td></td><td>${fmt(T.startS)}</td><td></td><td>${fmt(T.inS)}</td><td></td><td>${fmt(T.usedS)}</td><td></td><td>${fmt(T.wrS)}</td><td></td><td>${fmt(T.endS)}</td></tr></tbody></table>
+      <p style="margin:2px 0 0;font-size:12px">Ціна витрати: ${S.meta.costMethod==='avg'?'за середньозваженою ціною':'ФІФО (за ціною першої за часом партії)'}.</p>`;
   }
+
   h+=`<div class="signs"><div class="sg">
     ${SIGNERS.filter(([k])=>!(M.repHide||{})[k]).map(([k,l])=>`<div>${l} <span class="line"></span> ${ln(M[k])}</div>`).join('')}
     <div class="date">Дата складання «___» ______________ ${y} р.</div></div>
@@ -543,7 +617,7 @@ function reportFile(){
 }
 
 function rSummary(){
-  const t=monthTotals(),u=usedMap(),ps=Object.keys(u).sort((a,b)=>u[b]*priceOf(b)-u[a]*priceOf(a));
+  const t=monthTotals(),u=usedMap(),CP=costing().prod,uS=p=>(CP[p]&&CP[p].usedS)||0,ps=Object.keys(u).sort((a,b)=>uS(b)-uS(a));
   const kdAll=t.kd.reduce((a,b)=>a+b,0);
   return `<div class="row between">${monthNav()}<div class="row"><button class="btn pri" data-act="xlsx">Завантажити Excel</button><button class="btn" data-act="copy">Копіювати звіт</button></div></div>
   <div class="stats">
@@ -558,7 +632,7 @@ function rSummary(){
       <tr class="tot"><td>Разом</td><td>${fmtq(kdAll,0)}</td><td>${fmt(t.cost)}</td><td>${fmt(t.cost/Math.max(1,kdAll))}</td></tr></tbody></table></div></div>
     <div class="card" style="min-width:0"><h2>Використані продукти</h2>${ps.length?`<div class="tw"><table>
       <thead><tr><th>Продукт</th><th>Кількість</th><th>Сума, грн</th></tr></thead>
-      <tbody>${ps.map(p=>`<tr><td class="name">${esc(p)}</td><td>${fmtq(u[p])} ${su(p)}</td><td>${fmt(u[p]*priceOf(p))}</td></tr>`).join('')}</tbody></table></div>`:'<p class="hint">Поки що немає даних за цей місяць.</p>'}</div>
+      <tbody>${ps.map(p=>`<tr><td class="name">${esc(p)}</td><td>${fmtq(u[p])} ${su(p)}</td><td>${fmt(uS(p))}</td></tr>`).join('')}</tbody></table></div>`:'<p class="hint">Поки що немає даних за цей місяць.</p>'}</div>
   </div>
   <div class="card"><div class="row between"><h2 style="margin:0">Звіт для друку</h2><button class="btn pri" data-act="repFile">Завантажити звіт для друку</button></div>
     <p class="hint">Документ із підписами та місцем для печатки. Файл відкривається в браузері або Word, далі «Друк» (Ctrl+P), аркуш А4.</p>
@@ -588,7 +662,10 @@ function groupsCard(){
     </div></div>`;
 }
 function rMenu(){
-  const dl=`<datalist id="prods">${allProducts().map(p=>`<option value="${esc(p)}">`).join('')}</datalist>`;
+  const STD=[0.05,0.1,0.15,0.2,0.25,0.3,0.4,0.5,0.6,0.75,0.8,1,1.5,2,2.5,3,3.5,4,4.5,5,6,7,8,10,12,15,20,25,30,35,40,45,50,60,70,75,80,90,100,110,120,130,150,180,200,250];
+  const used=new Set();S.meta.dishes.forEach(d=>d.items.forEach(it=>it.g.forEach(v=>{if(num(v))used.add(+num(v))})));
+  const vals=[...new Set([...STD,...used])].sort((a,b)=>a-b);
+  const dl=`<datalist id="prods">${allProducts().map(p=>`<option value="${esc(p)}">`).join('')}</datalist><datalist id="normVals">${vals.map(v=>`<option value="${String(v).replace('.',',')}">`).join('')}</datalist>`;
   const col=S.collapsed||(S.collapsed=new Set());
   const cards=S.meta.dishes.map((d,n)=>{const open=!col.has(d.id);const nItems=d.items.filter(i=>i.p).length;
    return `<article class="card dish ${open?'':'closed'}">
@@ -601,7 +678,7 @@ function rMenu(){
     ${open?`<div class="tw"><table class="mt"><thead><tr><th class="n">№</th><th>Інгредієнт (продукт)</th><th>Од.</th>${G.map(g=>`<th>${g.c}</th>`).join('')}<th></th></tr></thead><tbody>
     ${d.items.map((it,j)=>`<tr><td class="n">${j+1}</td><td><input class="pname" list="prods" value="${esc(it.p)}" data-f="ip" data-d="${d.id}" data-j="${j}" placeholder="напр. молоко"></td>
       <td>${it.p?(isPcs(it.p)?'шт':'г'):''}</td>
-      ${it.g.slice(0,G.length).map((v,i)=>`<td><input type="number" step="any" min="0" value="${v||''}" placeholder="0" data-f="ig" data-d="${d.id}" data-j="${j}" data-i="${i}"></td>`).join('')}
+      ${it.g.slice(0,G.length).map((v,i)=>`<td><input class="norm" type="text" inputmode="decimal" list="normVals" autocomplete="off" value="${v?String(v).replace('.',','):''}" placeholder="0" data-f="ig" data-d="${d.id}" data-j="${j}" data-i="${i}" title="Виберіть зі списку або впишіть число"></td>`).join('')}
       <td><button class="btn sm ghost" data-act="rmItem" data-d="${d.id}" data-j="${j}" aria-label="Прибрати інгредієнт">×</button></td></tr>`).join('')}
     </tbody><tfoot>
     <tr class="sumrow"><td></td><td>Разом сировини на 1 дитину</td><td></td>${G.map((g,i)=>`<td>${rawLabel(d,i)}</td>`).join('')}<td></td></tr>
@@ -611,7 +688,7 @@ function rMenu(){
     <button class="btn sm" style="margin-top:8px" data-act="addItem" data-d="${d.id}">+ Інгредієнт</button>`:''}
   </article>`}).join('');
   const any=S.meta.dishes.length;
-  return `${dl}${groupsCard()}<div class="row between"><div><h2>Меню</h2><p class="hint">Заповнюється один раз. Норма вказується в грамах сировини на одну дитину, для яєць — у штуках. Сума та вартість порції рахуються самі.</p></div>
+  return `${dl}${groupsCard()}<div class="row between"><div><h2>Меню</h2><p class="hint">Заповнюється один раз. Норма вказується в грамах сировини на одну дитину, для яєць — у штуках. Норму можна вибрати зі списку в полі або вписати (через кому чи крапку). Сума та вартість порції рахуються самі.</p></div>
     <div class="row">${any?`<button class="btn" data-act="collapseAll">${col.size===any?'Розгорнути всі':'Згорнути всі'}</button>`:''}<button class="btn pri" data-act="addDishDef">+ Нова страва</button></div></div>
     ${cards||'<div class="card empty">Додайте першу страву та її інгредієнти.</div>'}`;
 }
@@ -757,7 +834,7 @@ $main.addEventListener('click',async e=>{
   if(a==='ask'){S.confirm=b.dataset.k;return render()}
   if(a==='cancel'){S.confirm=null;return render()}
   S.confirm=null;
-  if(a==='mprev'||a==='mnext'){S.cur=shiftKey(S.cur,a==='mprev'?-1:1);S.week=null;if(!S.months[S.cur]&&store.kind!=='none'&&!S.example){const m=await store.get('m-'+S.cur).catch(()=>null);if(m)S.months[S.cur]=m}return render()}
+  if(a==='mprev'||a==='mnext'){S.cur=shiftKey(S.cur,a==='mprev'?-1:1);S.week=null;if(!S.months[S.cur]&&store.kind!=='none'&&!S.example){const m=await store.get('m-'+S.cur).catch(()=>null);if(m){migrateStock(m);S.months[S.cur]=m}}return render()}
   if(a==='addDay'){
     const m=month(),[y,mm]=S.cur.split('-');let dt;
     if(m.days.length){const lastD=m.days.map(d=>d.date).sort().pop();dt=new Date(lastD+'T12:00');do{dt.setDate(dt.getDate()+1)}while(dt.getDay()===0||dt.getDay()===6)}
@@ -786,9 +863,11 @@ $main.addEventListener('click',async e=>{
   if(a==='copyDish'){const d=dishById(b.dataset.d),cp=JSON.parse(JSON.stringify(d));cp.id=uid();cp.name=d.name+' (копія)';S.meta.dishes.splice(S.meta.dishes.indexOf(d)+1,0,cp);touch('meta');render();return toast('Страву скопійовано')}
   if(a==='addItem'){dishById(b.dataset.d).items.push({p:'',g:[0,0,0]});touch('meta');return render()}
   if(a==='rmItem'){dishById(b.dataset.d).items.splice(+b.dataset.j,1);touch('meta');return render()}
+  if(a==='buys'){S.openBuys=S.openBuys===b.dataset.p?null:b.dataset.p;return render()}
+  if(a==='rmBuy'){const st=month().stock[b.dataset.p];if(st){migrateStock({stock:{x:st}});st.buys=st.buys.filter(x=>x.id!==b.dataset.b);touch(mk)}return render()}
   if(a==='delP'){const p=b.dataset.p;delete S.meta.products[p];
     S.meta.dishes.forEach(d=>{d.items=d.items.filter(i=>i.p!==p)});
-    Object.entries(S.months).forEach(([k,m])=>{if(m.stock)delete m.stock[p];if(m.end)delete m.end[p];touch('m-'+k)});
+    Object.entries(S.months).forEach(([k,m])=>{if(m.stock)delete m.stock[p];if(m.end)delete m.end[p];if(m.endLots)delete m.endLots[p];touch('m-'+k)});
     touch('meta');render();return toast(`Продукт «${p}» видалено`)}
   if(a==='clearAllYes'){wipe();return toast('Усі дані очищено')}
   if(a==='xlsx')return exportXlsx();
@@ -803,6 +882,13 @@ $main.addEventListener('click',async e=>{
 });
 $main.addEventListener('toggle',e=>{if(e.target.id==='clsDetails')S.clsOpen=e.target.open},true);
 $main.addEventListener('submit',e=>{
+  if(e.target.classList.contains('buyform')){e.preventDefault();const f=e.target,p=f.dataset.p,q=num(f.q.value),pr=num(f.pr.value);
+    if(!q){f.q.focus();return toast('Вкажіть кількість')}
+    const m=month();m.stock[p]=m.stock[p]||{buys:[]};migrateStock({stock:{x:m.stock[p]}});
+    m.stock[p].buys.push({id:uid(),q,pr,date:f.d.value||''});
+    if(pr){S.meta.products[p]=S.meta.products[p]||{unit:'г'};S.meta.products[p].price=pr;touch('meta')}
+    ensureMonthListed(S.cur);touch('m-'+S.cur);render();toast(`Додано надходження: ${fmtq(q)} ${su(p)} × ${fmt(pr)} грн`);
+    setTimeout(()=>{const ff=$main.querySelector(`.buyform[data-p="${CSS.escape(p)}"] [name="q"]`);ff&&ff.focus()},30);return}
   if(e.target.id==='addClassForm'){e.preventDefault();const n=document.getElementById('newClass').value.trim().toUpperCase().replace(/\s+/g,''),t=Math.round(num(document.getElementById('newClassTotal').value));
     if(!n)return toast('Впишіть назву класу');if(CL().some(c=>c.name===n))return toast(`Клас ${n} уже є`);
     CL().push({id:uid(),name:n,total:t});touch('meta');render();document.getElementById('newClass')?.focus();return toast(`Додано ${n}`)}
@@ -810,16 +896,16 @@ $main.addEventListener('submit',e=>{
   const inp=document.getElementById('newProd'),v=normName(inp.value),u=document.getElementById('newUnit').value;
   if(!v){inp.focus();return toast('Впишіть назву продукту')}
   if(allProducts().includes(v)){S.flash=v;render();return toast(`«${v}» уже є в списку`)}
-  S.meta.products[v]={unit:u,price:0};const m=month();m.stock[v]=m.stock[v]||{};ensureMonthListed(S.cur);
-  S.flash=v;touch('meta','m-'+S.cur);render();toast(`Додано «${v}». Впишіть закупівлю і ціну`);
-  setTimeout(()=>{const r=$main.querySelector('tr.flash [data-f="bought"]');r&&r.focus()},50);
+  S.meta.products[v]={unit:u,price:0};const m=month();m.stock[v]=m.stock[v]||{buys:[]};S.openBuys=v;ensureMonthListed(S.cur);
+  S.flash=v;touch('meta','m-'+S.cur);render();toast(`Додано «${v}». Внесіть надходження: кількість і ціну`);
+  setTimeout(()=>{const r=$main.querySelector(`.buyform[data-p="${CSS.escape(v)}"] [name="q"]`);r&&r.focus()},50);
   setTimeout(()=>{S.flash=null;$main.querySelector('tr.flash')?.classList.remove('flash')},2500);
 });
 $main.addEventListener('change',async e=>{
   const el=e.target,f=el.dataset.f,mk='m-'+S.cur;
   if(el.id==='restore'&&el.files[0]){
     try{const data=JSON.parse(await el.files[0].text());if(!data.meta||!data.months)throw 0;
-      S.meta=data.meta;S.months=data.months;S.meta.months=Object.keys(S.months).sort();S.example=false;
+      S.meta=data.meta;S.months=data.months;S.meta.months=Object.keys(S.months).sort();S.example=false;normalizeAll();
       dirty.add('meta');Object.keys(S.months).forEach(k=>dirty.add('m-'+k));await flush();render();toast('Дані відновлено')}
     catch(err){toast('Це не файл резервної копії обліку харчування')}
     return}
@@ -827,14 +913,16 @@ $main.addEventListener('change',async e=>{
   if(f==='date'){dayOf(el.dataset.day).date=el.value;touch(mk)}
   else if(f==='kids'){const dd=dayOf(el.dataset.day),ii=+el.dataset.i;dd.kids[ii]=Math.max(0,Math.round(num(el.value)));if(G.length<3&&ii===1)dd.kids[2]=0;touch(mk)}
   else if(f==='addDish'){if(el.value){const d=dayOf(el.dataset.day);if(!d.dishes.includes(el.value))d.dishes.push(el.value);touch(mk)}}
-  else if(['start','bought','price','written'].includes(f)){
-    const m=month(),p=el.dataset.p;m.stock[p]=m.stock[p]||{};
+  else if(['start','startPr','written'].includes(f)){
+    const m=month(),p=el.dataset.p;m.stock[p]=m.stock[p]||{buys:[]};
     m.stock[p][f]=el.value===''?(f==='start'?undefined:0):num(el.value);
-    if(f==='price'&&num(el.value)){S.meta.products[p]=S.meta.products[p]||{unit:'г'};S.meta.products[p].price=num(el.value);touch('meta')}
     ensureMonthListed(S.cur);touch(mk)}
+  else if(f==='bq'||f==='bpr'||f==='bdate'){const st=month().stock[el.dataset.p];migrateStock({stock:{x:st}});const bb=st.buys.find(x=>x.id===el.dataset.b);if(bb){if(f==='bdate')bb.date=el.value;else bb[f==='bq'?'q':'pr']=Math.max(0,num(el.value));
+    if(f==='bpr'&&num(el.value)){S.meta.products[el.dataset.p]=S.meta.products[el.dataset.p]||{unit:'г'};S.meta.products[el.dataset.p].price=num(el.value);touch('meta')}touch(mk)}}
+  else if(f==='costMethod'){S.meta.costMethod=el.value;touch('meta');toast(el.value==='avg'?'Витрата рахується за середньозваженою ціною':'Витрата рахується за ФІФО')}
   else if(f==='unit'){const p=el.dataset.p,from=unitOf(p),to=el.value;S.meta.products[p]=S.meta.products[p]||{price:0};
     const k=(from==='г'&&to==='гр')?1000:(from==='гр'&&to==='г')?1/1000:0; // кг↔г: перерахувати кількість і ціну
-    if(k){Object.entries(S.months).forEach(([mk2,m])=>{const st=m.stock&&m.stock[p];if(st){['start','bought','written'].forEach(x=>{if(st[x]!==undefined&&st[x]!=='')st[x]=+(num(st[x])*k).toFixed(4)});if(st.price)st.price=+(num(st.price)/k).toFixed(4);touch('m-'+mk2)}if(m.end&&m.end[p]!==undefined)m.end[p]*=k});
+    if(k){Object.entries(S.months).forEach(([mk2,m])=>{const st=m.stock&&m.stock[p];if(st){migrateStock({stock:{x:st}});['start','written'].forEach(x=>{if(st[x]!==undefined&&st[x]!=='')st[x]=+(num(st[x])*k).toFixed(4)});if(st.startPr)st.startPr=+(num(st.startPr)/k).toFixed(6);st.buys.forEach(b=>{b.q=+(num(b.q)*k).toFixed(4);b.pr=+(num(b.pr)/k).toFixed(6)});touch('m-'+mk2)}if(m.end&&m.end[p]!==undefined)m.end[p]*=k;if(m.endLots&&m.endLots[p])m.endLots[p]=m.endLots[p].map(x=>({q:x.q*k,pr:x.pr/k}))});
       if(S.meta.products[p].price)S.meta.products[p].price=+(S.meta.products[p].price/k).toFixed(4)}
     S.meta.products[p].unit=to;touch('meta')}
   else if(f==='wkAdd'){if(!el.value)return;const date=el.dataset.date,k=date.slice(0,7),m=month(k);let d=m.days.find(x=>x.date===date);
@@ -858,7 +946,7 @@ $main.addEventListener('change',async e=>{
   else if(f==='dname'){dishById(el.dataset.d).name=el.value.trim();touch('meta')}
   else if(f==='ip'){const v=normName(el.value);dishById(el.dataset.d).items[+el.dataset.j].p=v;
     if(v&&!S.meta.products[v])S.meta.products[v]={unit:/яйц|яйце/.test(v)?'шт':'г',price:0};touch('meta')}
-  else if(f==='ig'){dishById(el.dataset.d).items[+el.dataset.j].g[+el.dataset.i]=num(el.value);touch('meta')}
+  else if(f==='ig'){dishById(el.dataset.d).items[+el.dataset.j].g[+el.dataset.i]=Math.max(0,num(el.value));touch('meta')}
   render();
 });
 
@@ -882,10 +970,14 @@ function reportRows(){
   });
   return out}
 function stockRows(){
-  const u=usedMap(),m=month(),out=[[`Розхід продуктів за ${MONTHS_GEN[+S.cur.split('-')[1]-1]} ${S.cur.split('-')[0]}`],['Продукт','Од.','Залишок на початок','Закуплено','Ціна, грн','Сума закупівлі, грн','Використано','Списано','Залишок']];
-  allProducts().forEach(p=>{const s=m.stock[p]||{},pr=num(s.price)||priceOf(p),st=startOf(p),b=num(s.bought),w=num(s.written),used=u[p]||0;
-    out.push([p,su(p),+st.toFixed(3),b,pr,+(b*pr).toFixed(2),+used.toFixed(3),w,+(st+b-used-w).toFixed(3)])});
+  const CP=costing().prod,out=[[`Рух продуктів за ${MONTHS_GEN[+S.cur.split('-')[1]-1]} ${S.cur.split('-')[0]}`],['Продукт','Од.','Залишок на початок, к-сть','Залишок на початок, грн','Надійшло, к-сть','Надійшло, грн','Використано, к-сть','Використано, грн','Списано, к-сть','Списано, грн','Залишок на кінець, к-сть','Залишок на кінець, грн']];
+  const T=[0,0,0,0,0];
+  allProducts().forEach(p=>{const r=CP[p];if(!r)return;const v=[r.startS,r.inS,r.usedS,r.wrS,r.endS];v.forEach((x,i)=>T[i]+=x);
+    out.push([p,su(p),+r.startQ.toFixed(3),+r.startS.toFixed(2),+r.inQ.toFixed(3),+r.inS.toFixed(2),+r.usedQ.toFixed(3),+r.usedS.toFixed(2),+r.wrQ.toFixed(3),+r.wrS.toFixed(2),+r.endQ.toFixed(3),+r.endS.toFixed(2)])});
+  out.push(['Разом','','',+T[0].toFixed(2),'',+T[1].toFixed(2),'',+T[2].toFixed(2),'',+T[3].toFixed(2),'',+T[4].toFixed(2)]);
   return out}
+function buyRows(){const out=[[`Надходження продуктів за ${MONTHS_GEN[+S.cur.split('-')[1]-1]} ${S.cur.split('-')[0]}`],['Дата','Продукт','Од.','Кількість','Ціна, грн','Сума, грн']];
+  allProducts().forEach(p=>buysOf(p).forEach(b=>out.push([b.date?dmy(b.date):'',p,su(p),num(b.q),num(b.pr),+(num(b.q)*num(b.pr)).toFixed(2)])));return out}
 function menuRows(){const out=[['Меню'],['Страва','Інгредієнт','Од.',...G.map(g=>g.a)]];
   S.meta.dishes.forEach(d=>d.items.forEach((it,i)=>out.push([i?'':d.name,it.p,isPcs(it.p)?'шт':'г',...it.g.slice(0,G.length)])));return out}
 function attRows(){
@@ -908,7 +1000,8 @@ function exportXlsx(){
   const wb=XLSX.utils.book_new();
   const add=(rows,name,w)=>{const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=w.map(x=>({wch:x}));XLSX.utils.book_append_sheet(wb,ws,name)};
   add(reportRows(),'Звіт',[11,28,22,9,9,9,9,9,9,8,8,8,12,11]);
-  add(stockRows(),'Розхід продуктів',[22,6,12,11,10,14,12,10,11]);
+  add(stockRows(),'Рух продуктів',[22,6,12,12,11,12,12,12,10,10,12,12]);
+  add(buyRows(),'Надходження',[11,22,6,10,10,12]);
   add(menuRows(),'Меню',[24,22,6,10,10,10]);
   if(CL().length&&month().att&&Object.keys(month().att).length)add(attRows(),'Відвідування',[12,9,11,10,12,12]);
   if(B().kids.length)add(benRows(),'Пільговики',[26,7,40,...month().days.map(()=>6),7,11]);
