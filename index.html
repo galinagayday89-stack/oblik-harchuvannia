@@ -607,7 +607,7 @@ function reportDoc(){
   h+=`<div class="signs"><div class="sg">
     ${SIGNERS.filter(([k])=>!(M.repHide||{})[k]).map(([k,l])=>`<div>${l} <span class="line"></span> ${ln(M[k])}</div>`).join('')}
     <div class="date">Дата складання «___» ______________ ${y} р.</div></div>
-    <div class="mp">М. П.</div></div>`;
+    <div class="mp">М. П.</div></div>${window.OH_LIC?`<p style="font-size:10px;color:#777;margin-top:14px">Облік харчування · Ліцензія № ${window.OH_LIC}</p>`:''}`;
   return h;
 }
 function reportFile(){
@@ -816,7 +816,7 @@ table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:6p
 <div class="top"><div>${e(S.meta.school||'')}</div><div class="ap">ЗАТВЕРДЖУЮ<br>Директор ____________ ${e(S.meta.director||'')}<br>«___» ____________ ${w.mon.slice(0,4)} р.</div></div>
 <h1>Меню на тиждень</h1><p class="c">з ${dmy(w.mon)} по ${dmy(w.fri)}</p>
 <table><thead><tr><th rowspan="2">День</th><th rowspan="2">Назва страви</th><th colspan="${G.length}">Вихід страви на 1 дитину</th></tr><tr>${G.map(g=>`<th>${g.c}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>
-<div class="sign"><div>Відповідальний за харчування ____________ ${e(S.meta.resp||'')}</div><div>Медична сестра ____________</div></div>
+<div class="sign"><div>Відповідальний за харчування ____________ ${e(S.meta.resp||'')}</div><div>Медична сестра ____________</div></div>${window.OH_LIC?`<p style="font-size:10px;color:#777;margin-top:14px">Облік харчування · Ліцензія № ${window.OH_LIC}</p>`:''}
 </body></html>`;
 }
 
@@ -1039,7 +1039,7 @@ body.locked #gate{display:grid}
     <input id="gateCode" placeholder="HARCH-XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Код доступу">
     <button class="btn pri" type="submit">Увійти</button>
     <p class="err" id="gateErr"></p>
-    <p class="note">Код вводиться один раз — браузер його запам’ятає.</p>
+    <p class="note">Код вводиться один раз — браузер його запам’ятає. Код доступу персональний і закріплюється за вашими пристроями.</p>
 
     <p class="note credit" style="margin:0">Створено © Галина Гайдай</p>
   </form>
@@ -1047,7 +1047,7 @@ body.locked #gate{display:grid}
 <script>
 (function(){
   const SALT='oh-galyna-2026';
-  const OK=new Set(["c8d9c147a9b40bfe44f9907657f2d670dd86188a8a292f74578ec30552ac367f", "c0505d0d43fb3820fe210c2eaec9250b6e9d5f20f2989efaece828abc8529df5", "e598b22c7c447c6fc237dc9fafc0984db5d1d4e52cba1b7c0631f707f2333521", "068dc5a8b104bf42f203595cf39b380d8cef8dad7b3157abc5198669ab2011e6", "775672d3fbdaa3b8ec4c4c209116672d80eb5af4e55756e7e4d34ede1bbccd11", "0e995d001f882729053cea3ce39a99842657725a85ba7b5654249242b61a0b15", "c2a2a9677e37a5edaece454c700c19af35de3f40ebb4167850d5b379c2380c25", "23950e32802ca935e0be55ad0fa325b45045b8c96f767f78d74c08dc1a6ea34a", "0119b594ff406fddee55173ee5d3c6a9e9441858fa4076235b2ac833edc02883", "a48697a0e5dabb0672172eea3c747671975d77971a9ba53a4d8f41dd46d010d6", "c0902ca0892db46c6f766e1a690c0ed538ad6c2207b3abe58a2ab4191e50cb66", "488d9a2a17baf9635f7002195126e4924afe38424edfafb4b82bd1eeec509b48", "d68315e086e1179976199106798230ea76b176ca52dd5aaf6a96a7d65d208203", "20b4ab124f4bbf1f98011c95fd65e084737ce499a9334f6fc07d2cea25d74998", "a5cff731a4c506b68bb0a714664e0d02d1b98d81fe374f718d3e54f4e1172ec9", "7f81782ac7a4ae7d742693e01adb06df5eeaa815ecdeea652a28dbfdf843c691", "0214581aede77a1f1edb688cd57a9487f7eebed60b5ee7c19c7e275fcd155aa7", "48c1c0dd39e6782c3433c113891b084b6fa696d7449f19cac9cbc56d0de2feed", "6b1036f184481b0fcc7f2ba01cc29451d9f017ee1be56606331f03f60b9ae45f", "14dad8a4662090cb9475c2e8866afb783a8d3655a989e2fc8e0ef009a5b49f88", "0559271473a08a3cb2cad9ce901fa241c62c337bcc671bc8eea45ca12c0d8cb7", "0cae55c0a5086b4fcc114f818c2604f0a808cb7b67093b72488e745cff6483d8", "dafaefd3c384d2a8b8fe2ac283eacc1abb0b52b77f1ebab9bbcc96ca9bcfd6ec", "2cc1c0f62fece1ed7a4d42449a135a9cdcc06bef5940ad0d05f23a28f6ffbfcf", "dbce9b4b3b314072fa3b2a1010ada0d35d24f9dfad31e35eb5591c91bcbd5065", "3193128f79938fd5aba5faef15e960c468b66209fc3be58e30a1328546df5d21", "84f7088cb68091d192ab52ab0aca438fa92293991c3f23ab04614f90c9747511", "1abca52280e6b46ad3896ec672e308b899b4d7cc8dd99db577e20c65ac878809", "c312203dc1b962de2d7913f10e5aef559b9d2028c6ff14055be6e641fe911f7d", "4390721c0814db775fcfa75b7984ff230a10c013b4aa243b189bd471339479b0", "2ea66ed09cb605ddfe1d126881c3578c6a4154e7223a0394acee97dca1e5bb4b", "be9f9c39f5460a31a7be1bd97003534d99133646dbbfcba49750edbbf3561e9a", "d12153b5ceb6afb724e1a15958d230395232f6babb82dc53195eb58410f97605", "c670c1866155cfb33a37971afb2dc0885995f70dc7a3f33373f1aa506145b4b6", "f1a962e52b19c108bc10a75acc330c7f664b2da404777bdfd29333ac42b68831", "8bfc7fd95eb43246943f3a48f97f34fcb2ebc70e30dc47ef6c730794ad354a6a", "7bc33f8d7c0fa8e0ac5a52e10f405d61e93dd3aeee31840059b88682bd660c9f", "f175744e3588e3fbf0ddd58cbafc982af177c480d45303031069cf0ee19e244a", "a3dac362ebc8b4d9b6ce41cca2f59e80baf6eac2a951c494714b3f26ff40e8c7", "bff91e83d0c64643b20a4b7d80313b446c5a310052f2af599d2029b81d4551c3", "8ea9cf7e4fb08a30369de3dd585c1e058444451df6ce9bf31aa999b5f55c7357", "6fdf536d0fe22990b86ec484bdea67645655c03a3e1f0b83e1c0c9001261c3ee", "099de5fa0ed1965fbaf263bb25ebc0346dc36149f049b5ac6bffd41b789477fb", "931d4047984a02c07d7fe9d313f0e7ca428f035c72f30e764c473e8846bdad69", "362688371ed65399a3132ff3aee1d5a0ba6e0a5c54f0539d5ea0743ee5c8cf8a", "fdb0bc72af87cc3c64e0b3471b31a2264a2f51d64197d5baf525087575bdf628", "9868fd68f37b38b8cb6cdfa83d64e7fc0058f0d8873c1d1fa08b1f1f0c8c3a25", "35c055213b13e79cb797a8da74a2138f2b685d20bed342c15ebe974fcb7423d8", "19a7762a5979c7b0022b5b1679dddf442e511754d45355cdafb902cedc19286c", "fdba9e26af30bf8425427f533e7b83b6c008dbdf0ec1aa91cfe1061f261662bb"]);
+  const LIST=["c8d9c147a9b40bfe44f9907657f2d670dd86188a8a292f74578ec30552ac367f", "c0505d0d43fb3820fe210c2eaec9250b6e9d5f20f2989efaece828abc8529df5", "e598b22c7c447c6fc237dc9fafc0984db5d1d4e52cba1b7c0631f707f2333521", "068dc5a8b104bf42f203595cf39b380d8cef8dad7b3157abc5198669ab2011e6", "775672d3fbdaa3b8ec4c4c209116672d80eb5af4e55756e7e4d34ede1bbccd11", "0e995d001f882729053cea3ce39a99842657725a85ba7b5654249242b61a0b15", "c2a2a9677e37a5edaece454c700c19af35de3f40ebb4167850d5b379c2380c25", "23950e32802ca935e0be55ad0fa325b45045b8c96f767f78d74c08dc1a6ea34a", "0119b594ff406fddee55173ee5d3c6a9e9441858fa4076235b2ac833edc02883", "a48697a0e5dabb0672172eea3c747671975d77971a9ba53a4d8f41dd46d010d6", "c0902ca0892db46c6f766e1a690c0ed538ad6c2207b3abe58a2ab4191e50cb66", "488d9a2a17baf9635f7002195126e4924afe38424edfafb4b82bd1eeec509b48", "d68315e086e1179976199106798230ea76b176ca52dd5aaf6a96a7d65d208203", "20b4ab124f4bbf1f98011c95fd65e084737ce499a9334f6fc07d2cea25d74998", "a5cff731a4c506b68bb0a714664e0d02d1b98d81fe374f718d3e54f4e1172ec9", "7f81782ac7a4ae7d742693e01adb06df5eeaa815ecdeea652a28dbfdf843c691", "0214581aede77a1f1edb688cd57a9487f7eebed60b5ee7c19c7e275fcd155aa7", "48c1c0dd39e6782c3433c113891b084b6fa696d7449f19cac9cbc56d0de2feed", "6b1036f184481b0fcc7f2ba01cc29451d9f017ee1be56606331f03f60b9ae45f", "14dad8a4662090cb9475c2e8866afb783a8d3655a989e2fc8e0ef009a5b49f88", "0559271473a08a3cb2cad9ce901fa241c62c337bcc671bc8eea45ca12c0d8cb7", "0cae55c0a5086b4fcc114f818c2604f0a808cb7b67093b72488e745cff6483d8", "dafaefd3c384d2a8b8fe2ac283eacc1abb0b52b77f1ebab9bbcc96ca9bcfd6ec", "2cc1c0f62fece1ed7a4d42449a135a9cdcc06bef5940ad0d05f23a28f6ffbfcf", "dbce9b4b3b314072fa3b2a1010ada0d35d24f9dfad31e35eb5591c91bcbd5065", "3193128f79938fd5aba5faef15e960c468b66209fc3be58e30a1328546df5d21", "84f7088cb68091d192ab52ab0aca438fa92293991c3f23ab04614f90c9747511", "1abca52280e6b46ad3896ec672e308b899b4d7cc8dd99db577e20c65ac878809", "c312203dc1b962de2d7913f10e5aef559b9d2028c6ff14055be6e641fe911f7d", "4390721c0814db775fcfa75b7984ff230a10c013b4aa243b189bd471339479b0", "2ea66ed09cb605ddfe1d126881c3578c6a4154e7223a0394acee97dca1e5bb4b", "be9f9c39f5460a31a7be1bd97003534d99133646dbbfcba49750edbbf3561e9a", "d12153b5ceb6afb724e1a15958d230395232f6babb82dc53195eb58410f97605", "c670c1866155cfb33a37971afb2dc0885995f70dc7a3f33373f1aa506145b4b6", "f1a962e52b19c108bc10a75acc330c7f664b2da404777bdfd29333ac42b68831", "8bfc7fd95eb43246943f3a48f97f34fcb2ebc70e30dc47ef6c730794ad354a6a", "7bc33f8d7c0fa8e0ac5a52e10f405d61e93dd3aeee31840059b88682bd660c9f", "f175744e3588e3fbf0ddd58cbafc982af177c480d45303031069cf0ee19e244a", "a3dac362ebc8b4d9b6ce41cca2f59e80baf6eac2a951c494714b3f26ff40e8c7", "bff91e83d0c64643b20a4b7d80313b446c5a310052f2af599d2029b81d4551c3", "8ea9cf7e4fb08a30369de3dd585c1e058444451df6ce9bf31aa999b5f55c7357", "6fdf536d0fe22990b86ec484bdea67645655c03a3e1f0b83e1c0c9001261c3ee", "099de5fa0ed1965fbaf263bb25ebc0346dc36149f049b5ac6bffd41b789477fb", "931d4047984a02c07d7fe9d313f0e7ca428f035c72f30e764c473e8846bdad69", "362688371ed65399a3132ff3aee1d5a0ba6e0a5c54f0539d5ea0743ee5c8cf8a", "fdb0bc72af87cc3c64e0b3471b31a2264a2f51d64197d5baf525087575bdf628", "9868fd68f37b38b8cb6cdfa83d64e7fc0058f0d8873c1d1fa08b1f1f0c8c3a25", "35c055213b13e79cb797a8da74a2138f2b685d20bed342c15ebe974fcb7423d8", "19a7762a5979c7b0022b5b1679dddf442e511754d45355cdafb902cedc19286c", "fdba9e26af30bf8425427f533e7b83b6c008dbdf0ec1aa91cfe1061f261662bb"],OK=new Set(LIST),API='https://script.google.com/macros/s/AKfycbzp5QResjbTs_u9N80ZzqUjH_09-zy1znnyv9mHNVRojJnJe1c9ZKPR-VtVt0zWIiSBcw/exec';
   function sha256(str){ // компактна реалізація SHA-256
     const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
     const b=new TextEncoder().encode(str),l=b.length,n=((l+9+63)>>6)<<6,m=new Uint8Array(n);m.set(b);m[l]=0x80;
@@ -1063,15 +1063,29 @@ body.locked #gate{display:grid}
     return h.map(v=>(v>>>0).toString(16).padStart(8,'0')).join('');
   }
   const norm=v=>String(v||'').toUpperCase().replace(/[\s–—_]/g,'').replace(/^HARCH-?/,'HARCH-').replace(/^(HARCH-[A-Z0-9]{4})-?([A-Z0-9]{4})$/,'$1-$2');
+  const err=document.getElementById('gateErr');
+  function devId(){try{let d=localStorage.getItem('oh_dev');if(!d){d=Math.random().toString(36).slice(2,10)+Date.now().toString(36);localStorage.setItem('oh_dev',d)}return d}catch(e){return 'nostore'}}
+  function uaShort(){const u=navigator.userAgent,os=(u.match(/Android|iPhone|iPad|Windows|Mac OS X|Linux/)||['?'])[0],br=(u.match(/Edg|OPR|YaBrowser|Firefox|Chrome|Safari/)||['?'])[0];return os+' · '+(br==='Edg'?'Edge':br==='OPR'?'Opera':br)}
+  async function remote(hs){if(!API)return {ok:true};
+    try{const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),9000);
+      const r=await fetch(API+'?h='+hs+'&d='+encodeURIComponent(devId())+'&ua='+encodeURIComponent(uaShort()),{signal:ctl.signal,redirect:'follow'});clearTimeout(t);
+      const j=await r.json();return j&&typeof j.ok==='boolean'?j:{ok:true}}catch(e){return {ok:true,offline:true}}}
+  const MSG={blocked:'Цей код доступу заблоковано. Зверніться до автора програми.',limit:'Цим кодом уже користуються на максимальній кількості пристроїв. Зверніться до автора програми.'};
+  function lic(hs){const n=LIST.indexOf(hs)+1;window.OH_LIC=n||'';const f=document.querySelector('footer .credit');if(f&&n&&!f.dataset.lic){f.dataset.lic=1;f.insertAdjacentHTML('beforeend',' · <span style="font-weight:400;font-size:12px">Ліцензія № '+n+'</span>')}}
+  function deny(reason){try{localStorage.removeItem('oh_access')}catch(e){}document.body.classList.add('locked');err.textContent=MSG[reason]||MSG.blocked}
   let saved=null;try{saved=localStorage.getItem('oh_access')}catch(e){}
-  if(!(saved&&OK.has(saved)))document.body.classList.add('locked');
+  if(saved&&OK.has(saved)){lic(saved);remote(saved).then(j=>{if(!j.ok)deny(j.reason)})}
+  else document.body.classList.add('locked');
   setTimeout(()=>{if(document.body.classList.contains('locked'))document.getElementById('gateCode').focus()},50);
-  document.getElementById('gateForm').addEventListener('submit',e=>{
-    e.preventDefault();const c=norm(document.getElementById('gateCode').value),hs=sha256(SALT+c),err=document.getElementById('gateErr');
+  document.getElementById('gateForm').addEventListener('submit',async e=>{
+    e.preventDefault();const c=norm(document.getElementById('gateCode').value),hs=sha256(SALT+c);
     if(!c){err.textContent='Впишіть код доступу.';return}
     if(!OK.has(hs)){err.textContent='Код не підходить. Перевірте, чи правильно його введено (літери й цифри, через дефіс).';return}
+    const btn=e.target.querySelector('button');btn.disabled=true;err.textContent='';btn.textContent='Перевіряю…';
+    const j=await remote(hs);btn.disabled=false;btn.textContent='Увійти';
+    if(!j.ok){deny(j.reason);return}
     try{localStorage.setItem('oh_access',hs)}catch(e){}
-    document.body.classList.remove('locked');
+    lic(hs);document.body.classList.remove('locked');
   });
 })();
 </script>
