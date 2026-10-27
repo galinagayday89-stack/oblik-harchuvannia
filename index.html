@@ -170,6 +170,8 @@ table.buys td,table.buys th{text-align:left}
 table.buys input[type=number]{width:90px}
 table.stock .buyform input[type=number]{width:110px}
 table.stock table.buys input[type=number]{width:90px}
+.fields textarea{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:6px 8px;resize:vertical}
+.actset summary{margin-top:4px}
 tr.flash td{background:var(--hl)}
 footer{margin-top:30px;font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
@@ -625,6 +627,70 @@ function reportDoc(){
     <div class="mp">М. П.</div></div>${window.OH_LIC?`<p style="font-size:10px;color:#777;margin-top:14px">Облік харчування · Ліцензія № ${window.OH_LIC}</p>`:''}`;
   return h;
 }
+/* ---------- акти на списання використаних продуктів ---------- */
+function sumWords(n){
+  const ones=[['','один','два','три','чотири','пʼять','шість','сім','вісім','девʼять'],['','одна','дві','три','чотири','пʼять','шість','сім','вісім','девʼять']];
+  const teens=['десять','одинадцять','дванадцять','тринадцять','чотирнадцять','пʼятнадцять','шістнадцять','сімнадцять','вісімнадцять','девʼятнадцять'];
+  const tens=['','','двадцять','тридцять','сорок','пʼятдесят','шістдесят','сімдесят','вісімдесят','девʼяносто'];
+  const hund=['','сто','двісті','триста','чотириста','пʼятсот','шістсот','сімсот','вісімсот','девʼятсот'];
+  const form=(n,f)=>{const a=n%100,b=n%10;if(a>10&&a<20)return f[2];if(b===1)return f[0];if(b>=2&&b<=4)return f[1];return f[2]};
+  const tri=(n,fem)=>{const w=[];w.push(hund[Math.floor(n/100)]);const t=n%100;if(t>=10&&t<20)w.push(teens[t-10]);else{w.push(tens[Math.floor(t/10)]);w.push(ones[fem?1:0][t%10])}return w.filter(Boolean).join(' ')};
+  const tot=Math.round(n*100),gr=Math.floor(tot/100),kop=tot%100;
+  const scales=[[null,true],[['тисяча','тисячі','тисяч'],true],[['мільйон','мільйони','мільйонів'],false]];
+  let x=gr,i=0;const parts=[];
+  if(x===0)parts.push('нуль');
+  while(x>0){const c=x%1000;if(c){const [f,fem]=scales[i];parts.unshift(tri(c,fem)+(f?' '+form(c,f):''))}x=Math.floor(x/1000);i++}
+  let txt=parts.join(' ')+' '+form(gr,['гривня','гривні','гривень'])+' '+String(kop).padStart(2,'0')+' '+form(kop,['копійка','копійки','копійок']);
+  return txt.charAt(0).toUpperCase()+txt.slice(1);
+}
+const ACT_DEF=[{apPos:'Директор',fund:'піклувальна рада'},{apPos:'Директор',fund:'державна субвенція'},{apPos:'Директор',fund:''}];
+function actCfg(i){S.meta.acts=S.meta.acts||[];if(!S.meta.acts[i])S.meta.acts[i]={...ACT_DEF[i],apName:'',head:'',members:''};return S.meta.acts[i]}
+function actRange(){const [y,mm]=S.cur.split('-'),last=new Date(+y,+mm,0).getDate();
+  let f=S.actFrom&&S.actFrom.slice(0,7)===S.cur?S.actFrom:`${S.cur}-01`,t=S.actTo&&S.actTo.slice(0,7)===S.cur?S.actTo:`${S.cur}-${pad(last)}`;if(t<f)t=f;return [f,t]}
+function actRows(i){const [f,t]=actRange(),m=month(),C=costing(),agg={};
+  m.days.filter(d=>d.date>=f&&d.date<=t).forEach(d=>{const u=dayUse(d);Object.entries(u).forEach(([p,a])=>{const q=a[i];if(!q)return;const up=(C.unit[d.id]||{})[p]??priceOf(p);const key=p+'|'+up.toFixed(2);const r=agg[key]||(agg[key]={p,pr:+up.toFixed(2),q:0,sum:0});r.q+=q;r.sum+=q*up})});
+  return Object.values(agg).sort((a,b)=>a.p.localeCompare(b.p,'uk')||a.pr-b.pr)}
+function actDoc(i){const c=actCfg(i),g=G[i],rows=actRows(i),[f,t]=actRange(),[y,mm]=S.cur.split('-'),e=esc;
+  const total=rows.reduce((a,r)=>a+r.sum,0);
+  const members=String(c.members||'').split(/\n|;/).map(x=>x.trim()).filter(Boolean);
+  const sl=v=>v?e(v):'<span class="line" style="min-width:180px"></span>';
+  return `<div class="top"><div></div><div class="ap">ЗАТВЕРДЖУЮ<br>${e(c.apPos||'Директор').replace(/\n/g,'<br>')}<br><span class="line"></span> ${e(c.apName||'')}</div></div>
+  <h1 style="margin-top:18px">Акт</h1><p class="subt" style="margin-bottom:4px">на списання продуктів харчування<br>${e(S.meta.schoolGen||S.meta.school||'')}</p>
+  <p class="subt">за ${MONTHS_GEN[+mm-1]} ${y} року</p>
+  <p style="text-align:justify;line-height:1.5">Ми, комісія в складі: голова комісії – ${sl(c.head)}, члени комісії: ${members.length?members.map(e).join(', '):'<span class="line" style="min-width:260px"></span>'}, склали даний акт про те, що для харчування учнів ${e(g.c.replace(/ класи$/,' класів').replace(/ клас$/,' класу'))}${c.fund?` (${e(c.fund)})`:''} за період з ${dmy(f)} по ${dmy(t)} у їдальні ${e(S.meta.schoolGen||'закладу')} були використані такі продукти:</p>
+  <table><thead><tr><th style="width:34px">№</th><th>Назва</th><th style="width:50px">Од.</th><th style="width:90px">Кількість</th><th style="width:90px">Ціна, грн</th><th style="width:100px">Сума, грн</th></tr></thead><tbody>
+  ${rows.map((r,k)=>`<tr><td>${k+1}</td><td class="l">${e(r.p)}</td><td>${su(r.p)}</td><td>${fmtq(r.q,3)}</td><td>${fmt(r.pr)}</td><td>${fmt(r.sum)}</td></tr>`).join('')||'<tr><td colspan="6">За цей період немає використаних продуктів для цієї групи</td></tr>'}
+  <tr class="t"><td></td><td class="l">Разом</td><td></td><td></td><td></td><td>${fmt(total)}</td></tr></tbody></table>
+  <p style="margin-top:8px">Загальна сума: <b>${fmt(total)} грн</b> (${sumWords(total)}).</p>
+  <div class="sg" style="margin-top:22px;display:grid;gap:16px">
+    <div>Голова комісії <span class="line"></span> ${e(String(c.head||'').split('–')[0].split(' - ')[0].trim())}</div>
+    ${(members.length?members:['','']).map((mm2,k)=>`<div>${k?'<span style="visibility:hidden">Члени комісії:</span>':'Члени комісії:'} <span class="line"></span> ${e(mm2.split('–')[0].split(' - ')[0].trim())}</div>`).join('')}
+  </div>${window.OH_LIC?`<p style="font-size:10px;color:#777;margin-top:14px">Облік харчування · Ліцензія № ${window.OH_LIC}</p>`:''}`;
+}
+function actFile(i){const [y,mm]=S.cur.split('-');
+  return `<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>Акт на списання ${G[i].c} ${MONTHS_GEN[+mm-1]} ${y}</title>
+<style>@page{size:A4 portrait;margin:15mm 15mm}body{margin:0;background:#fff}.rep{max-width:180mm;margin:0 auto;padding:10px}${REP_CSS}</style></head><body><div class="rep">${actDoc(i)}</div></body></html>`}
+function actCard(){
+  const [f,t]=actRange();if(S.actG==null||S.actG>=G.length)S.actG=0;const i=S.actG,c=actCfg(i);
+  return `<div class="card"><div class="row between"><h2 style="margin:0">Акти на списання продуктів</h2><button class="btn pri" data-act="actFile">Завантажити акт (${G[i].c})</button></div>
+    <p class="hint">Акт про використані для харчування продукти — окремо для кожної групи класів. Кількість і суми беруться з журналу за цінами партій.</p>
+    <div class="fields" style="margin:10px 0">
+      <label>Назва закладу в родовому відмінку<input value="${esc(S.meta.schoolGen||'')}" data-f="schoolGen" placeholder="напр. ліцею, гімназії (у родовому відмінку)"></label>
+      <label>Період з<input type="date" value="${f}" data-f="actFrom"></label>
+      <label>по<input type="date" value="${t}" data-f="actTo"></label>
+      <label>Група класів<select data-f="actG">${G.map((g,k)=>`<option value="${k}" ${k===i?'selected':''}>${g.c}</option>`).join('')}</select></label>
+    </div>
+    <details class="actset" open><summary>Реквізити акта для ${G[i].c}</summary>
+    <div class="fields" style="margin:10px 0">
+      <label>Хто затверджує (посада)<textarea rows="2" data-f="act" data-k="apPos" placeholder="Директор">${esc(c.apPos||'')}</textarea></label>
+      <label>Ім’я та прізвище затверджувача<input value="${esc(c.apName||'')}" data-f="act" data-k="apName" placeholder="Імʼя ПРІЗВИЩЕ"></label>
+      <label>Джерело фінансування<input value="${esc(c.fund||'')}" data-f="act" data-k="fund" placeholder="піклувальна рада / державна субвенція"></label>
+      <label>Голова комісії (ПІБ – посада)<input value="${esc(c.head||'')}" data-f="act" data-k="head" placeholder="Прізвище І. Б. – посада"></label>
+      <label>Члени комісії (кожен з нового рядка)<textarea rows="3" data-f="act" data-k="members" placeholder="Прізвище І. Б. – посада">${esc(c.members||'')}</textarea></label>
+    </div></details>
+    <div class="paperwrap"><div class="rep paper">${actDoc(i)}</div></div>
+  </div>`;
+}
 function reportFile(){
   const [y,mm]=S.cur.split('-');
   return `<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>Звіт про харчування ${MONTHS_GEN[+mm-1]} ${y}</title>
@@ -658,6 +724,7 @@ function rSummary(){
         <label class="chk"><input type="checkbox" data-f="repShow" data-k="${k}" ${off?'':'checked'}> Показувати у звіті</label></div>`}).join('')}</div>
     <div class="paperwrap"><div class="rep paper">${reportDoc()}</div></div>
   </div>
+  ${actCard()}
   <div class="card"><h2>Резервна копія</h2><p class="hint">Збережіть файл з усіма даними (меню, всі місяці), щоб перенести на інший пристрій або відновити.</p>
     <div class="row"><button class="btn" data-act="backup">Зберегти копію (.json)</button><label class="btn" for="restore">Відновити з файлу</label><input type="file" id="restore" accept=".json,application/json" hidden></div>
     <div class="row" style="margin-top:10px">${confirmBtn('all','Очистити всі дані','clearAllYes')}</div></div>`;
@@ -862,6 +929,7 @@ $main.addEventListener('click',async e=>{
   if(a==='rmDish'){const d=dayOf(b.dataset.day);d.dishes=d.dishes.filter(x=>x!==b.dataset.d);touch(mk);return render()}
   if(a==='addDishDef'){S.meta.dishes.push({id:uid(),name:'',items:[{p:'',g:[0,0,0]}]});touch('meta');render();const ins=$main.querySelectorAll('.dname');ins[ins.length-1]?.focus();return}
   if(a==='rmDishDef'){S.meta.dishes=S.meta.dishes.filter(d=>d.id!==b.dataset.d);touch('meta');return render()}
+  if(a==='actFile'){const i=S.actG||0,[y,mm]=S.cur.split('-');return saveFile(`Акт на списання ${G[i].c} ${MONTHS_GEN[+mm-1]} ${y}.html`,new Blob([actFile(i)],{type:'text/html'}))}
   if(a==='repFile'){const [y,mm]=S.cur.split('-');return saveFile(`Звіт про харчування ${MONTHS_GEN[+mm-1]} ${y}.html`,new Blob([reportFile()],{type:'text/html'}))}
   if(a==='wkRm'){const k=b.dataset.date.slice(0,7),m=month(k),d=m.days.find(x=>x.date===b.dataset.date);if(d){d.dishes=d.dishes.filter(x=>x!==b.dataset.d);touch('m-'+k)}return render()}
   if(a==='goJournal'){S.tab='journal';return render()}
@@ -955,7 +1023,11 @@ $main.addEventListener('change',async e=>{
     if(el.checked){if(!arr.includes(k))arr.push(k)}else m.ben[el.dataset.day]=arr.filter(x=>x!==k);touch(mk)}
   else if(f==='kname'||f==='kcls'||f==='kcat'){const x=B().kids.find(q=>q.id===el.dataset.k);x[{kname:'name',kcls:'cls',kcat:'cat'}[f]]=el.value.trim();touch('meta')}
   else if(f==='catname'){const b=B(),i=+el.dataset.i,old=b.cats[i],v=el.value.trim();if(!v)return render();b.cats[i]=v;b.kids.forEach(x=>{if(x.cat===old)x.cat=v});touch('meta')}
-  else if(['school','director','resp','nurse','accountant'].includes(f)){S.meta[f]=el.value.trim();touch('meta')}
+  else if(['school','director','resp','nurse','accountant','schoolGen'].includes(f)){S.meta[f]=el.value.trim();touch('meta')}
+  else if(f==='actFrom'){S.actFrom=el.value}
+  else if(f==='actTo'){S.actTo=el.value}
+  else if(f==='actG'){S.actG=+el.value}
+  else if(f==='act'){actCfg(S.actG||0)[el.dataset.k]=el.value.trim();touch('meta')}
   else if(f==='week'){S.week=+el.value}
   else if(f==='dout'){const d=dishById(el.dataset.d);d.out=d.out||[0,0,0];d.out[+el.dataset.i]=num(el.value);touch('meta')}
   else if(f==='dname'){dishById(el.dataset.d).name=el.value.trim();touch('meta')}
