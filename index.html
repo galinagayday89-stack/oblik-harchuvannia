@@ -360,8 +360,10 @@ const dishById=id=>S.meta.dishes.find(d=>d.id===id);
 const unitOf=p=>(S.meta.products[p]?.unit)||'г';
 const isPcs=p=>unitOf(p)==='шт';
 const isGr=p=>unitOf(p)==='гр'; // облік у грамах
-const su=p=>isPcs(p)?'шт':isGr(p)?'г':'кг';
-const UNITS=[['г','кг'],['гр','г'],['шт','шт']];
+const isL=p=>unitOf(p)==='л'; // облік у літрах, норма в мл
+const su=p=>isPcs(p)?'шт':isGr(p)?'г':isL(p)?'л':'кг';
+const nu=p=>isPcs(p)?'шт':isL(p)?'мл':'г'; // одиниця норми на 1 дитину
+const UNITS=[['г','кг'],['гр','г'],['л','л'],['шт','шт']];
 const toStock=(p,q)=>isPcs(p)||isGr(p)?q:q/1000; // норма (г) → одиниця складу
 let COST={};
 function migrateStock(m){Object.values((m&&m.stock)||{}).forEach(st=>{if(!Array.isArray(st.buys)){st.buys=num(st.bought)?[{id:uid(),q:num(st.bought),pr:num(st.price),date:''}]:[];delete st.bought;delete st.price}})}
@@ -589,7 +591,7 @@ function rStock(){
     <h2 style="margin-top:16px">Рух продуктів за ${MONTHS_GEN[+S.cur.split('-')[1]-1]}${sep&&sel!=='all'?` — ${G[sel].c}`:''}</h2>
     <form class="row" id="addProdForm" style="margin:10px 0">
       <input id="newProd" placeholder="Назва продукту, напр. гречка" autocomplete="off" style="flex:1;min-width:180px;max-width:320px" aria-label="Назва нового продукту">
-      <select id="newUnit" aria-label="Одиниця"><option value="г">кг</option><option value="гр">г</option><option value="шт">шт</option></select>
+      <select id="newUnit" aria-label="Одиниця"><option value="г">кг</option><option value="гр">г</option><option value="л">л</option><option value="шт">шт</option></select>
       <button class="btn pri" type="submit">+ Додати продукт</button></form>
     ${usedInfo()}
     <div class="row meth"><label class="chk2"><input type="checkbox" data-f="sepStock" ${sep?'checked':''}> <b>Окремий облік для кожної групи класів</b> (прихід, залишки, списання)${sep&&S.meta.sepFrom?` — діє з ${MONTHS_GEN[+S.meta.sepFrom.split('-')[1]-1]} ${S.meta.sepFrom.split('-')[0]}`:''}</label></div>
@@ -747,7 +749,7 @@ function mvDoc(day,i,no){
   <table><thead><tr><th style="width:34px">№</th><th>Назва страви</th><th style="width:120px">Вихід порції</th><th style="width:110px">Кількість дітей</th></tr></thead><tbody>
   ${dishes.map((d,k)=>`<tr><td>${k+1}</td><td class="l">${e(d.name)}</td><td>${dishOut(d,i)}</td><td>${kd}</td></tr>`).join('')||'<tr><td colspan="4">Страви не вибрано</td></tr>'}</tbody></table>
   <h3 style="text-align:center">РОЗРАХУНОК ПРОДУКТІВ</h3>
-  <table><thead><tr><th style="width:34px">№</th><th>Назва продукту</th><th style="width:44px">Од.</th><th style="width:110px">Норма на 1 дитину, г (шт)</th><th style="width:110px">Кількість за нормою</th><th style="width:80px">Ціна, грн</th><th style="width:90px">Сума, грн</th></tr></thead><tbody>
+  <table><thead><tr><th style="width:34px">№</th><th>Назва продукту</th><th style="width:44px">Од.</th><th style="width:110px">Норма на 1 дитину, г / мл / шт</th><th style="width:110px">Кількість за нормою</th><th style="width:80px">Ціна, грн</th><th style="width:90px">Сума, грн</th></tr></thead><tbody>
   ${rows.map((r,k)=>`<tr><td>${k+1}</td><td class="l">${e(r.p)}</td><td>${su(r.p)}</td><td>${r.n.toLocaleString('uk-UA',{minimumFractionDigits:3,maximumFractionDigits:3})}</td><td>${r.q.toLocaleString('uk-UA',{minimumFractionDigits:3,maximumFractionDigits:3})}</td><td>${fmt(r.pr)}</td><td>${fmt(r.sum)}</td></tr>`).join('')}
   <tr class="t"><td colspan="6" class="l">РАЗОМ, грн</td><td>${fmt(total)}</td></tr>
   <tr class="t"><td colspan="6" class="l">ВАРТІСТЬ НА 1 УЧНЯ, грн</td><td>${fmt(per)}</td></tr>
@@ -867,7 +869,7 @@ function rMenu(){
     </div>
     ${open?`<div class="tw"><table class="mt"><thead><tr><th class="n">№</th><th>Інгредієнт (продукт)</th><th>Од.</th>${G.map(g=>`<th>${g.c}</th>`).join('')}<th></th></tr></thead><tbody>
     ${d.items.map((it,j)=>`<tr><td class="n">${j+1}</td><td><input class="pname" list="prods" value="${esc(it.p)}" data-f="ip" data-d="${d.id}" data-j="${j}" placeholder="напр. молоко"></td>
-      <td>${it.p?(isPcs(it.p)?'шт':'г'):''}</td>
+      <td>${it.p?nu(it.p):''}</td>
       ${it.g.slice(0,G.length).map((v,i)=>`<td><input class="norm" type="text" inputmode="decimal" list="normVals" autocomplete="off" value="${v?String(v).replace('.',','):''}" placeholder="0" data-f="ig" data-d="${d.id}" data-j="${j}" data-i="${i}" title="Виберіть зі списку або впишіть число"></td>`).join('')}
       <td><button class="btn sm ghost" data-act="rmItem" data-d="${d.id}" data-j="${j}" aria-label="Прибрати інгредієнт">×</button></td></tr>`).join('')}
     </tbody><tfoot>
@@ -878,7 +880,7 @@ function rMenu(){
     <button class="btn sm" style="margin-top:8px" data-act="addItem" data-d="${d.id}">+ Інгредієнт</button>`:''}
   </article>`}).join('');
   const any=S.meta.dishes.length;
-  return `${dl}${groupsCard()}<div class="row between"><div><h2>Меню</h2><p class="hint">Заповнюється один раз. Норма вказується в грамах сировини на одну дитину, для яєць — у штуках. Норму можна вибрати зі списку в полі або вписати (через кому чи крапку). Сума та вартість порції рахуються самі.</p></div>
+  return `${dl}${groupsCard()}<div class="row between"><div><h2>Меню</h2><p class="hint">Заповнюється один раз. Норма вказується на одну дитину: у грамах (продукти в кг і г), у мілілітрах (продукти в літрах) або в штуках. Норму можна вибрати зі списку в полі або вписати (через кому чи крапку). Сума та вартість порції рахуються самі.</p></div>
     <div class="row">${any?`<button class="btn" data-act="collapseAll">${col.size===any?'Розгорнути всі':'Згорнути всі'}</button>`:''}<button class="btn pri" data-act="addDishDef">+ Нова страва</button></div></div>
     ${cards||'<div class="card empty">Додайте першу страву та її інгредієнти.</div>'}`;
 }
@@ -1122,7 +1124,7 @@ $main.addEventListener('change',async e=>{
   else if(f==='bg'){const st=month().stock[el.dataset.p];const bb=st&&st.buys&&st.buys.find(x=>x.id===el.dataset.b);if(bb){bb.g=+el.value;touch(mk)}}
   else if(f==='costMethod'){S.meta.costMethod=el.value;touch('meta');toast(el.value==='avg'?'Витрата рахується за середньозваженою ціною':'Витрата рахується за ФІФО')}
   else if(f==='unit'){const p=el.dataset.p,from=unitOf(p),to=el.value;S.meta.products[p]=S.meta.products[p]||{price:0};
-    const k=(from==='г'&&to==='гр')?1000:(from==='гр'&&to==='г')?1/1000:0; // кг↔г: перерахувати кількість і ціну
+    const big=u=>u==='г'||u==='л',k=(big(from)&&to==='гр')?1000:(from==='гр'&&big(to))?1/1000:0; // кг↔г: перерахувати кількість і ціну
     if(k){Object.entries(S.months).forEach(([mk2,m])=>{const st=m.stock&&m.stock[p];if(st){migrateStock({stock:{x:st}});['start','written'].forEach(x=>{if(st[x]!==undefined&&st[x]!=='')st[x]=+(num(st[x])*k).toFixed(4)});if(st.startPr)st.startPr=+(num(st.startPr)/k).toFixed(6);st.buys.forEach(b=>{b.q=+(num(b.q)*k).toFixed(4);b.pr=+(num(b.pr)/k).toFixed(6)});if(st.writtenG)st.writtenG=st.writtenG.map(x=>+(num(x)*k).toFixed(4));if(st.startG)Object.values(st.startG).forEach(o=>{if(o.q!==undefined&&o.q!=='')o.q=+(num(o.q)*k).toFixed(4);if(o.pr)o.pr=+(num(o.pr)/k).toFixed(6)});touch('m-'+mk2)}if(m.end&&m.end[p]!==undefined)m.end[p]*=k;if(m.endLots&&m.endLots[p])m.endLots[p]=m.endLots[p].map(x=>({q:x.q*k,pr:x.pr/k}));if(m.endLotsG&&m.endLotsG[p])m.endLotsG[p]=m.endLotsG[p].map(ls=>(ls||[]).map(x=>({q:x.q*k,pr:x.pr/k})))});
       if(S.meta.products[p].price)S.meta.products[p].price=+(S.meta.products[p].price/k).toFixed(4)}
     S.meta.products[p].unit=to;touch('meta')}
@@ -1192,7 +1194,7 @@ function groupRows(){const {C,ps,T}=groupUse();const out=[[`Використан
 function buyRows(){const out=[[`Надходження продуктів за ${MONTHS_GEN[+S.cur.split('-')[1]-1]} ${S.cur.split('-')[0]}`],['Дата','Продукт','Од.','Кількість','Ціна, грн','Сума, грн']];
   allProducts().forEach(p=>buysOf(p).forEach(b=>out.push([b.date?dmy(b.date):'',p,su(p),num(b.q),num(b.pr),+(num(b.q)*num(b.pr)).toFixed(2),...(SEP()?[(G[+(b.g||0)]||G[0]).c]:[])])));if(SEP())out[1].push('Група');return out}
 function menuRows(){const out=[['Меню'],['Страва','Інгредієнт','Од.',...G.map(g=>g.a)]];
-  S.meta.dishes.forEach(d=>d.items.forEach((it,i)=>out.push([i?'':d.name,it.p,isPcs(it.p)?'шт':'г',...it.g.slice(0,G.length)])));return out}
+  S.meta.dishes.forEach(d=>d.items.forEach((it,i)=>out.push([i?'':d.name,it.p,it.p?nu(it.p):'',...it.g.slice(0,G.length)])));return out}
 function attRows(){
   const m=month(),cls=[...CL()].sort((a,b)=>parseInt(a.name)-parseInt(b.name)||a.name.localeCompare(b.name,'uk'));
   const out=[[`Відвідування та харчування за ${MONTHS_GEN[+S.cur.split('-')[1]-1]} ${S.cur.split('-')[0]}`],['Дата','Клас','За списком','Присутні','Харчувалися','З них пільговиків']];
